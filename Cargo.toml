@@ -33,11 +33,14 @@ tempfile = "3.1.0"
 [target.'cfg(target_os = "windows")'.dependencies]
 schannel = "0.1.28"
 
-[target.'cfg(not(any(target_os = "windows", target_vendor = "apple")))'.dependencies]
+[target.'cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios", target_os = "espidf")))'.dependencies]
 log = "0.4.27"
 openssl = "0.10.75"
 openssl-sys = "0.9.111"
 openssl-probe = "0.2.1"
+
+[target.'cfg(target_os = "espidf")'.dependencies]
+mbedtls = { version = "0.8.1", features = ["pkcs12", "std"] }
 
 [dev-dependencies]
 tempfile = "3.0"
