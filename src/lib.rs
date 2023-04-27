@@ -105,11 +105,12 @@ use std::io;
 use std::result;
 
 #[cfg_attr(target_vendor = "apple", path = "imp/security_framework.rs")]
-#[cfg_attr(target_os = "windows", path = "imp/schannel.rs")]
+#[cfg_attr(all(target_os = "windows", not(target_env = "sgx")), path = "imp/schannel.rs")]
 #[cfg_attr(
-    not(any(target_vendor = "apple", target_os = "windows")),
+    not(any(target_vendor = "apple", target_os = "windows", target_env = "sgx")),
     path = "imp/openssl.rs"
 )]
+#[cfg_attr(target_env = "sgx", path = "imp/mbedtls.rs")]
 mod imp;
 
 #[cfg(test)]
