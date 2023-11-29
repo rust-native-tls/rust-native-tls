@@ -474,6 +474,58 @@ fn alpn_google_none() {
 }
 
 #[test]
+#[cfg(feature = "alpn")]
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+fn alpn_server_side() {
+    let keys = test_cert_gen::keys();
+    let cert = keys.server.cert_and_key.cert.to_pem().into_bytes();
+    let key = rsa_to_pkcs8(&keys.server.cert_and_key.key.to_pem_incorrect()).into_bytes();
+
+    let ident = Identity::from_pkcs8(&cert, &key).unwrap();
+    let ident2 = ident.clone();
+    let mut builder = TlsAcceptor::builder(ident);
+    builder.accept_alpn(&["h2"]);
+    let builder = p!(builder.build());
+
+    let listener = p!(TcpListener::bind("0.0.0.0:0"));
+    let port = p!(listener.local_addr()).port();
+
+    let j = thread::spawn(move || {
+        let socket = p!(listener.accept()).0;
+        let mut socket = p!(builder.accept(socket));
+
+        let alpn = p!(socket.negotiated_alpn());
+        assert_eq!(alpn, Some(b"h2".to_vec()));
+
+        let mut buf = [0; 5];
+        p!(socket.read_exact(&mut buf));
+        assert_eq!(&buf, b"hello");
+
+        p!(socket.write_all(b"world"));
+    });
+
+    let root_ca = Certificate::from_der(keys.client.ca.get_der()).unwrap();
+
+    let socket = p!(TcpStream::connect(("localhost", port)));
+    let mut builder = TlsConnector::builder();
+
+    builder.request_alpns(&["h2"]);
+
+    builder.identity(ident2);
+
+    builder.add_root_certificate(root_ca);
+    let builder = p!(builder.build());
+    let mut socket = p!(builder.connect("localhost", socket));
+
+    p!(socket.write_all(b"hello"));
+    let mut buf = vec![];
+    p!(socket.read_to_end(&mut buf));
+    assert_eq!(buf, b"world");
+
+    p!(j.join());
+}
+
+#[test]
 fn server_pkcs8() {
     let keys = test_cert_gen::keys();
     let cert = keys.server.cert_and_key.cert.to_pem().into_bytes();
