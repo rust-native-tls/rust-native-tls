@@ -338,6 +338,8 @@ pub struct TlsAcceptor {
     cert: CertContext,
     min_protocol: Option<crate::Protocol>,
     max_protocol: Option<crate::Protocol>,
+    #[cfg(feature = "alpn")]
+    alpn: Vec<String>,
 }
 
 impl TlsAcceptor {
@@ -346,6 +348,8 @@ impl TlsAcceptor {
             cert: builder.identity.0.cert.clone(),
             min_protocol: builder.min_protocol,
             max_protocol: builder.max_protocol,
+            #[cfg(feature = "alpn")]
+            alpn: builder.alpn.clone(),
         })
     }
 
@@ -358,7 +362,13 @@ impl TlsAcceptor {
         builder.cert(self.cert.clone());
         // FIXME we're probably missing the certificate chain?
         let cred = builder.acquire(Direction::Inbound)?;
-        match tls_stream::Builder::new().accept(cred, stream) {
+        let mut builder = tls_stream::Builder::new();
+        #[cfg(feature = "alpn")]
+        if !self.alpn.is_empty() {
+            let alpn: Vec<&[u8]> = self.alpn.iter().map(|s| s.as_bytes()).collect();
+            builder.request_application_protocols(alpn.as_slice());
+        }
+        match builder.accept(cred, stream) {
             Ok(s) => Ok(TlsStream(s)),
             Err(e) => Err(e.into()),
         }
