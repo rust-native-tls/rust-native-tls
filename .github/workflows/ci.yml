@@ -92,3 +92,22 @@ jobs:
             target
           key: package-target-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
       - run: cargo package -v --no-default-features
+
+  android-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+        targets: x86_64-linux-android
+        components: clippy
+    - name: Install cargo ndk and rust compiler for android target
+      run: |
+        cargo install --locked cargo-ndk
+        rustup target add x86_64-linux-android
+    - name: clippy
+      run: cargo ndk -t x86_64 clippy --features vendored -- -D warnings
+    - name: Build
+      run: |
+        cargo ndk -t x86_64 rustc --verbose --features vendored --lib --crate-type=cdylib
