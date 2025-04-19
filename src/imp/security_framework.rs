@@ -16,42 +16,17 @@ use std::str;
 #[cfg(target_os = "macos")]
 use std::sync::{Mutex, Once};
 
-#[cfg(not(any(
-    target_os = "ios",
-    target_os = "watchos",
-    target_os = "tvos",
-    target_os = "visionos"
-)))]
+#[cfg(target_os = "macos")]
 use security_framework::os::macos::certificate::{PropertyType, SecCertificateExt};
-#[cfg(not(any(
-    target_os = "ios",
-    target_os = "watchos",
-    target_os = "tvos",
-    target_os = "visionos"
-)))]
+#[cfg(target_os = "macos")]
 use security_framework::os::macos::certificate_oids::CertificateOid;
-#[cfg(not(any(
-    target_os = "ios",
-    target_os = "watchos",
-    target_os = "tvos",
-    target_os = "visionos"
-)))]
+#[cfg(target_os = "macos")]
 use security_framework::os::macos::identity::SecIdentityExt;
-#[cfg(not(any(
-    target_os = "ios",
-    target_os = "watchos",
-    target_os = "tvos",
-    target_os = "visionos"
-)))]
+#[cfg(target_os = "macos")]
 use security_framework::os::macos::import_export::{
     ImportOptions, Pkcs12ImportOptionsExt, SecItems,
 };
-#[cfg(not(any(
-    target_os = "ios",
-    target_os = "watchos",
-    target_os = "tvos",
-    target_os = "visionos"
-)))]
+#[cfg(target_os = "macos")]
 use security_framework::os::macos::keychain::{self, KeychainSettings, SecKeychain};
 
 use crate::{Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
@@ -59,12 +34,7 @@ use crate::{Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
 #[cfg(target_os = "macos")]
 static SET_AT_EXIT: Once = Once::new();
 
-#[cfg(not(any(
-    target_os = "ios",
-    target_os = "watchos",
-    target_os = "tvos",
-    target_os = "visionos"
-)))]
+#[cfg(target_os = "macos")]
 static TEMP_KEYCHAIN: Mutex<Option<(SecKeychain, tempfile::TempDir)>> = Mutex::new(None);
 
 fn convert_protocol(protocol: Protocol) -> SslProtocol {
@@ -109,22 +79,12 @@ pub struct Identity {
 }
 
 impl Identity {
-    #[cfg(any(
-        target_os = "ios",
-        target_os = "watchos",
-        target_os = "tvos",
-        target_os = "visionos"
-    ))]
+    #[cfg(not(target_os = "macos"))]
     pub fn from_pkcs8(_: &[u8], _: &[u8]) -> Result<Identity, Error> {
         panic!("Not implemented on iOS");
     }
 
-    #[cfg(not(any(
-        target_os = "ios",
-        target_os = "watchos",
-        target_os = "tvos",
-        target_os = "visionos"
-    )))]
+    #[cfg(target_os = "macos")]
     pub fn from_pkcs8(pem: &[u8], key: &[u8]) -> Result<Identity, Error> {
         if !key.starts_with(b"-----BEGIN PRIVATE KEY-----") {
             return Err(Error(base::Error::from(errSecParam)));
@@ -182,12 +142,7 @@ impl Identity {
         })
     }
 
-    #[cfg(not(any(
-        target_os = "ios",
-        target_os = "watchos",
-        target_os = "tvos",
-        target_os = "visionos"
-    )))]
+    #[cfg(target_os = "macos")]
     fn import_options(buf: &[u8], pass: &str) -> Result<Vec<ImportedIdentity>, Error> {
         SET_AT_EXIT.call_once(|| {
             extern "C" fn atexit() {
@@ -223,12 +178,7 @@ impl Identity {
         Ok(imports)
     }
 
-    #[cfg(any(
-        target_os = "ios",
-        target_os = "watchos",
-        target_os = "tvos",
-        target_os = "visionos"
-    ))]
+    #[cfg(not(target_os = "macos"))]
     fn import_options(buf: &[u8], pass: &str) -> Result<Vec<ImportedIdentity>, Error> {
         let imports = Pkcs12ImportOptions::new().passphrase(pass).import(buf)?;
         Ok(imports)
@@ -258,12 +208,7 @@ impl Certificate {
         Ok(Certificate(cert))
     }
 
-    #[cfg(not(any(
-        target_os = "ios",
-        target_os = "watchos",
-        target_os = "tvos",
-        target_os = "visionos"
-    )))]
+    #[cfg(target_os = "macos")]
     pub fn from_pem(buf: &[u8]) -> Result<Certificate, Error> {
         let mut items = SecItems::default();
         ImportOptions::new().items(&mut items).import(buf)?;
@@ -274,12 +219,7 @@ impl Certificate {
         }
     }
 
-    #[cfg(any(
-        target_os = "ios",
-        target_os = "watchos",
-        target_os = "tvos",
-        target_os = "visionos"
-    ))]
+    #[cfg(not(target_os = "macos"))]
     pub fn from_pem(_: &[u8]) -> Result<Certificate, Error> {
         panic!("Not implemented on iOS, tvOS, watchOS or visionOS");
     }
@@ -555,22 +495,12 @@ impl<S: io::Read + io::Write> TlsStream<S> {
         }
     }
 
-    #[cfg(any(
-        target_os = "ios",
-        target_os = "watchos",
-        target_os = "tvos",
-        target_os = "visionos"
-    ))]
+    #[cfg(not(target_os = "macos"))]
     pub fn tls_server_end_point(&self) -> Result<Option<Vec<u8>>, Error> {
         Ok(None)
     }
 
-    #[cfg(not(any(
-        target_os = "ios",
-        target_os = "watchos",
-        target_os = "tvos",
-        target_os = "visionos"
-    )))]
+    #[cfg(target_os = "macos")]
     pub fn tls_server_end_point(&self) -> Result<Option<Vec<u8>>, Error> {
         let cert = match self.cert {
             Some(ref cert) => cert.clone(),
