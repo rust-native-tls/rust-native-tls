@@ -211,6 +211,7 @@ impl<S> MidHandshakeTlsStream<S>
 where
     S: io::Read + io::Write,
 {
+    #[allow(clippy::result_large_err)]
     pub fn handshake(self) -> Result<TlsStream<S>, HandshakeError<S>> {
         match self.0.handshake() {
             Ok(s) => Ok(TlsStream(s)),
@@ -219,6 +220,7 @@ where
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum HandshakeError<S> {
     Failure(Error),
     WouldBlock(MidHandshakeTlsStream<S>),
@@ -277,6 +279,7 @@ impl TlsConnector {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn connect<S>(&self, domain: &str, stream: S) -> Result<TlsStream<S>, HandshakeError<S>>
     where
         S: io::Read + io::Write,
@@ -350,6 +353,7 @@ impl TlsAcceptor {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn accept<S>(&self, stream: S) -> Result<TlsStream<S>, HandshakeError<S>>
     where
         S: io::Read + io::Write,
