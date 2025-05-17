@@ -3,10 +3,10 @@ name: CI
 on:
   pull_request:
     branches:
-      - master
+      - '**'
   push:
     branches:
-      - master
+      - '**'
 
 env:
   RUSTFLAGS: -Dwarnings
@@ -18,8 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: sfackler/actions/rustup@master
-      - uses: sfackler/actions/rustfmt@master
+      - uses: dtolnay/rust-toolchain@stable
 
   windows:
     strategy:
@@ -32,27 +31,56 @@ jobs:
     name: test-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: sfackler/actions/rustup@master
-        with:
-          version: 1.80.0
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - run: echo "::set-output name=version::$(rustc --version)"
         id: rust-version
-      - uses: actions/cache@v1
-        with:
-          path: ~/.cargo/registry/index
-          key: index-${{ runner.os }}-${{ github.run_number }}
-          restore-keys: |
-            index-${{ runner.os }}-
       - run: cargo generate-lockfile
-      - uses: actions/cache@v1
-        with:
-          path: ~/.cargo/registry/cache
-          key: registry-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - run: cargo fetch
-      - uses: actions/cache@v1
-        with:
-          path: target
-          key: target-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --features vendored
-      - run: cargo test --features vendored
+
+  build_n_test_ios:
+    strategy:
+      fail-fast: false
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install cargo lipo and rust compiler for ios target
+      if: ${{ !cancelled() }}
+      run: |
+        cargo install --locked cargo-lipo
+        rustup target add x86_64-apple-ios aarch64-apple-ios
+    - name: clippy
+      if: ${{ !cancelled() }}
+      run: cargo clippy --target x86_64-apple-ios --all-features -- -D warnings
+    - name: Build
+      if: ${{ !cancelled() }}
+      run: |
+        cargo lipo --verbose --all-features
+    - name: Abort on error
+      if: ${{ failure() }}
+      run: echo "iOS build job failed" && false
+
+  build_n_test_android:
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install cargo ndk and rust compiler for android target
+      if: ${{ !cancelled() }}
+      run: |
+        cargo install --locked cargo-ndk
+        rustup target add x86_64-linux-android
+    - name: clippy
+      if: ${{ !cancelled() }}
+      run: cargo ndk -t x86_64 clippy --features vendored -- -D warnings
+    - name: Build
+      if: ${{ !cancelled() }}
+      run: |
+        cargo ndk -t x86_64 rustc --verbose --features vendored --lib --crate-type=cdylib
+    - name: Abort on error
+      if: ${{ failure() }}
+      run: echo "Android build job failed" && false

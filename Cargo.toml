@@ -12,12 +12,16 @@ rust-version = "1.80.0"
 features = ["alpn"]
 rustdoc-args = ["--cfg", "docsrs"]
 
+[lib]
+crate-type = ["staticlib", "rlib"]
+
 [features]
 vendored = ["openssl/vendored"]
 alpn = ["security-framework/alpn"]
+have_min_max_version = []
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
-security-framework = "2.0.0"
+security-framework = "3"
 security-framework-sys = "2.0.0"
 libc = "0.2"
 

@@ -10,18 +10,21 @@ use std::fmt;
 use std::io;
 use std::str;
 
-use {TlsAcceptorBuilder, TlsConnectorBuilder};
+use crate::{TlsAcceptorBuilder, TlsConnectorBuilder};
 
 const SEC_E_NO_CREDENTIALS: u32 = 0x8009030E;
 
-static PROTOCOLS: &'static [Protocol] = &[
+static PROTOCOLS: &[Protocol] = &[
     Protocol::Ssl3,
     Protocol::Tls10,
     Protocol::Tls11,
     Protocol::Tls12,
 ];
 
-fn convert_protocols(min: Option<::Protocol>, max: Option<::Protocol>) -> &'static [Protocol] {
+fn convert_protocols(
+    min: Option<crate::Protocol>,
+    max: Option<crate::Protocol>,
+) -> &'static [Protocol] {
     let mut protocols = PROTOCOLS;
     if let Some(p) = max.and_then(|max| protocols.get(..=max as usize)) {
         protocols = p;
@@ -101,7 +104,7 @@ impl Identity {
         }
 
         let mut store = Memory::new()?.into_store();
-        let mut cert_iter = pem::PemBlock::new(pem).into_iter();
+        let mut cert_iter = pem::PemBlock::new(pem);
         let leaf = cert_iter.next().ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -124,7 +127,7 @@ impl Identity {
             Ok(container) => container,
             Err(_) => options.new_keyset(true).acquire(type_)?,
         };
-        container.import().import_pkcs8_pem(&key)?;
+        container.import().import_pkcs8_pem(key)?;
 
         cert.set_key_prov_info()
             .container(&name)
@@ -202,6 +205,7 @@ impl<S> MidHandshakeTlsStream<S>
 where
     S: io::Read + io::Write,
 {
+    #[allow(clippy::result_large_err)]
     pub fn handshake(self) -> Result<TlsStream<S>, HandshakeError<S>> {
         match self.0.handshake() {
             Ok(s) => Ok(TlsStream(s)),
@@ -210,6 +214,7 @@ where
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum HandshakeError<S> {
     Failure(Error),
     WouldBlock(MidHandshakeTlsStream<S>),
@@ -236,8 +241,8 @@ impl<S> From<io::Error> for HandshakeError<S> {
 pub struct TlsConnector {
     cert: Option<CertContext>,
     roots: CertStore,
-    min_protocol: Option<::Protocol>,
-    max_protocol: Option<::Protocol>,
+    min_protocol: Option<crate::Protocol>,
+    max_protocol: Option<crate::Protocol>,
     use_sni: bool,
     accept_invalid_hostnames: bool,
     accept_invalid_certs: bool,
@@ -268,6 +273,7 @@ impl TlsConnector {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn connect<S>(&self, domain: &str, stream: S) -> Result<TlsStream<S>, HandshakeError<S>>
     where
         S: io::Read + io::Write,
@@ -289,10 +295,8 @@ impl TlsConnector {
         } else if self.disable_built_in_roots {
             let roots_copy = self.roots.clone();
             builder.verify_callback(move |res| {
-                if let Err(err) = res.result() {
-                    // Propagate previous error encountered during normal cert validation.
-                    return Err(err);
-                }
+                // Propagate previous error encountered during normal cert validation.
+                res.result()?;
 
                 if let Some(chain) = res.chain() {
                     if chain
@@ -303,8 +307,7 @@ impl TlsConnector {
                     }
                 }
 
-                Err(io::Error::new(
-                    io::ErrorKind::Other,
+                Err(io::Error::other(
                     "unable to find any user-specified roots in the final cert chain",
                 ))
             });
@@ -327,8 +330,8 @@ impl TlsConnector {
 #[derive(Clone)]
 pub struct TlsAcceptor {
     cert: CertContext,
-    min_protocol: Option<::Protocol>,
-    max_protocol: Option<::Protocol>,
+    min_protocol: Option<crate::Protocol>,
+    max_protocol: Option<crate::Protocol>,
 }
 
 impl TlsAcceptor {
@@ -340,6 +343,7 @@ impl TlsAcceptor {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn accept<S>(&self, stream: S) -> Result<TlsStream<S>, HandshakeError<S>>
     where
         S: io::Read + io::Write,
@@ -469,7 +473,7 @@ mod pem {
                 Some(end) => end + begin + 1,
                 None => last,
             };
-            return Some(&self.pem_block[begin..self.cur_end].as_bytes());
+            Some(&self.pem_block.as_bytes()[begin..self.cur_end])
         }
     }
 

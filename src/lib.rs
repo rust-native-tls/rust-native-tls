@@ -35,8 +35,8 @@
 //! # Cargo Features
 //!
 //! * `vendored` - If enabled, the crate will compile and statically link to a
-//!     vendored copy of OpenSSL. This feature has no effect on Windows and
-//!     macOS, where OpenSSL is not used.
+//!   vendored copy of OpenSSL. This feature has no effect on Windows and
+//!   macOS, where OpenSSL is not used.
 //!
 //! # Examples
 //!
@@ -246,6 +246,7 @@ where
     /// Note that the error may not be fatal. For example if the underlying
     /// stream is an asynchronous one then `HandshakeError::WouldBlock` may
     /// just mean to wait for more I/O to happen later.
+    #[allow(clippy::result_large_err)]
     pub fn handshake(self) -> result::Result<TlsStream<S>, HandshakeError<S>> {
         match self.0.handshake() {
             Ok(s) => Ok(TlsStream(s)),
@@ -256,6 +257,7 @@ where
 
 /// An error returned from `ClientBuilder::handshake`.
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum HandshakeError<S> {
     /// A fatal error.
     Failure(Error),
@@ -500,6 +502,7 @@ impl TlsConnector {
     ///
     /// The domain is ignored if both SNI and hostname verification are
     /// disabled.
+    #[allow(clippy::result_large_err)]
     pub fn connect<S>(
         &self,
         domain: &str,
@@ -616,6 +619,7 @@ impl TlsAcceptor {
     /// the handshake, a `HandshakeError::WouldBlock` error will be returned
     /// which can be used to restart the handshake when the socket is ready
     /// again.
+    #[allow(clippy::result_large_err)]
     pub fn accept<S>(&self, stream: S) -> result::Result<TlsStream<S>, HandshakeError<S>>
     where
         S: io::Read + io::Write,

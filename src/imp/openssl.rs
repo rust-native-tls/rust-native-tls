@@ -17,11 +17,11 @@ use std::fmt;
 use std::io;
 use std::sync::LazyLock;
 
-use {Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
+use crate::{Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
 
 static PROBE_RESULT: LazyLock<ProbeResult> = LazyLock::new(openssl_probe::probe);
 
-#[cfg(have_min_max_version)]
+#[cfg(feature = "have_min_max_version")]
 fn supported_protocols(
     min: Option<Protocol>,
     max: Option<Protocol>,
@@ -44,7 +44,7 @@ fn supported_protocols(
     Ok(())
 }
 
-#[cfg(not(have_min_max_version))]
+#[cfg(not(feature = "have_min_max_version"))]
 fn supported_protocols(
     min: Option<Protocol>,
     max: Option<Protocol>,
@@ -465,9 +465,7 @@ impl<S: io::Read + io::Write> TlsStream<S> {
         match self.0.shutdown() {
             Ok(_) => Ok(()),
             Err(ref e) if e.code() == ssl::ErrorCode::ZERO_RETURN => Ok(()),
-            Err(e) => Err(e
-                .into_io_error()
-                .unwrap_or_else(|e| io::Error::new(io::ErrorKind::Other, e))),
+            Err(e) => Err(e.into_io_error().unwrap_or_else(io::Error::other)),
         }
     }
 }
