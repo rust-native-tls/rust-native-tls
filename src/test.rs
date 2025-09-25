@@ -1,9 +1,13 @@
+extern crate serial_test;
+
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::process::{Command, Stdio};
 use std::string::String;
 use std::thread;
+
+use self::serial_test::serial;
 
 use super::*;
 
@@ -48,6 +52,7 @@ fn connect_bad_hostname_ignored() {
 }
 
 #[test]
+#[cfg_attr(target_os = "macos", serial)]
 fn connect_no_root_certs() {
     let builder = p!(TlsConnector::builder().disable_built_in_roots(true).build());
     let s = p!(TcpStream::connect("google.com:443"));
@@ -55,6 +60,7 @@ fn connect_no_root_certs() {
 }
 
 #[test]
+#[cfg_attr(target_os = "macos", serial)]
 fn server_no_root_certs() {
     let keys = test_cert_gen::keys();
 
@@ -96,6 +102,7 @@ fn server_no_root_certs() {
 }
 
 #[test]
+#[cfg_attr(target_os = "macos", serial)]
 fn server() {
     let keys = test_cert_gen::keys();
 
@@ -159,6 +166,7 @@ fn certificate_from_pem() {
 }
 
 #[test]
+#[cfg_attr(target_os = "macos", serial)]
 fn peer_certificate() {
     let keys = test_cert_gen::keys();
 
@@ -195,6 +203,7 @@ fn peer_certificate() {
 }
 
 #[test]
+#[cfg_attr(target_os = "macos", serial)]
 fn server_tls11_only() {
     let keys = test_cert_gen::keys();
 
@@ -240,6 +249,7 @@ fn server_tls11_only() {
 }
 
 #[test]
+#[cfg_attr(target_os = "macos", serial)]
 fn server_no_shared_protocol() {
     let keys = test_cert_gen::keys();
 
@@ -273,6 +283,7 @@ fn server_no_shared_protocol() {
 }
 
 #[test]
+#[cfg_attr(target_os = "macos", serial)]
 fn server_untrusted() {
     let keys = test_cert_gen::keys();
 
@@ -300,6 +311,7 @@ fn server_untrusted() {
 }
 
 #[test]
+#[cfg_attr(target_os = "macos", serial)]
 fn server_untrusted_unverified() {
     let keys = test_cert_gen::keys();
 
@@ -338,6 +350,7 @@ fn server_untrusted_unverified() {
 }
 
 #[test]
+#[cfg_attr(target_os = "macos", serial)]
 fn import_same_identity_multiple_times() {
     let keys = test_cert_gen::keys();
 
@@ -367,6 +380,7 @@ fn from_pkcs8_rejects_rsa_key() {
 }
 
 #[test]
+#[cfg_attr(target_os = "macos", serial)]
 fn shutdown() {
     let keys = test_cert_gen::keys();
 
