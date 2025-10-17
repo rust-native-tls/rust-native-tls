@@ -15,6 +15,7 @@ use std::io;
 use std::sync::LazyLock;
 
 use crate::{Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
+use log::debug;
 
 static PROBE_RESULT: LazyLock<ProbeResult> = LazyLock::new(openssl_probe::probe);
 
