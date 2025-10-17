@@ -1,23 +1,20 @@
-extern crate openssl;
-extern crate openssl_probe;
-
-use self::openssl::error::ErrorStack;
-use self::openssl::hash::MessageDigest;
-use self::openssl::nid::Nid;
-use self::openssl::pkcs12::Pkcs12;
-use self::openssl::pkey::{PKey, Private};
-use self::openssl::ssl::{
+use openssl::error::ErrorStack;
+use openssl::hash::MessageDigest;
+use openssl::nid::Nid;
+use openssl::pkcs12::Pkcs12;
+use openssl::pkey::{PKey, Private};
+use openssl::ssl::{
     self, MidHandshakeSslStream, SslAcceptor, SslConnector, SslContextBuilder, SslMethod,
     SslVerifyMode,
 };
-use self::openssl::x509::{store::X509StoreBuilder, X509VerifyResult, X509};
-use self::openssl_probe::ProbeResult;
+use openssl::x509::{store::X509StoreBuilder, X509VerifyResult, X509};
+use openssl_probe::ProbeResult;
 use std::error;
 use std::fmt;
 use std::io;
 use std::sync::LazyLock;
 
-use {Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
+use crate::{Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
 
 static PROBE_RESULT: LazyLock<ProbeResult> = LazyLock::new(openssl_probe::probe);
 
@@ -27,7 +24,7 @@ fn supported_protocols(
     max: Option<Protocol>,
     ctx: &mut SslContextBuilder,
 ) -> Result<(), ErrorStack> {
-    use self::openssl::ssl::SslVersion;
+    use openssl::ssl::SslVersion;
 
     fn cvt(p: Protocol) -> SslVersion {
         match p {
@@ -50,7 +47,7 @@ fn supported_protocols(
     max: Option<Protocol>,
     ctx: &mut SslContextBuilder,
 ) -> Result<(), ErrorStack> {
-    use self::openssl::ssl::SslOptions;
+    use openssl::ssl::SslOptions;
 
     let no_ssl_mask = SslOptions::NO_SSLV2
         | SslOptions::NO_SSLV3

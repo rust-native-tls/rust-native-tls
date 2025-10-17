@@ -1,16 +1,12 @@
-extern crate libc;
-extern crate security_framework;
-extern crate security_framework_sys;
-
-use self::security_framework::base;
-use self::security_framework::certificate::SecCertificate;
-use self::security_framework::identity::SecIdentity;
-use self::security_framework::import_export::{ImportedIdentity, Pkcs12ImportOptions};
-use self::security_framework::random::SecRandom;
-use self::security_framework::secure_transport::{
+use security_framework::base;
+use security_framework::certificate::SecCertificate;
+use security_framework::identity::SecIdentity;
+use security_framework::import_export::{ImportedIdentity, Pkcs12ImportOptions};
+use security_framework::random::SecRandom;
+use security_framework::secure_transport::{
     self, ClientBuilder, SslConnectionType, SslContext, SslProtocol, SslProtocolSide,
 };
-use self::security_framework_sys::base::{errSecIO, errSecParam};
+use security_framework_sys::base::{errSecIO, errSecParam};
 use std::error;
 use std::fmt;
 use std::io;
@@ -24,28 +20,28 @@ use std::sync::Once;
     target_os = "tvos",
     target_os = "visionos"
 )))]
-use self::security_framework::os::macos::certificate::{PropertyType, SecCertificateExt};
+use security_framework::os::macos::certificate::{PropertyType, SecCertificateExt};
 #[cfg(not(any(
     target_os = "ios",
     target_os = "watchos",
     target_os = "tvos",
     target_os = "visionos"
 )))]
-use self::security_framework::os::macos::certificate_oids::CertificateOid;
+use security_framework::os::macos::certificate_oids::CertificateOid;
 #[cfg(not(any(
     target_os = "ios",
     target_os = "watchos",
     target_os = "tvos",
     target_os = "visionos"
 )))]
-use self::security_framework::os::macos::identity::SecIdentityExt;
+use security_framework::os::macos::identity::SecIdentityExt;
 #[cfg(not(any(
     target_os = "ios",
     target_os = "watchos",
     target_os = "tvos",
     target_os = "visionos"
 )))]
-use self::security_framework::os::macos::import_export::{
+use security_framework::os::macos::import_export::{
     ImportOptions, Pkcs12ImportOptionsExt, SecItems,
 };
 #[cfg(not(any(
@@ -54,9 +50,9 @@ use self::security_framework::os::macos::import_export::{
     target_os = "tvos",
     target_os = "visionos"
 )))]
-use self::security_framework::os::macos::keychain::{self, KeychainSettings, SecKeychain};
+use security_framework::os::macos::keychain::{self, KeychainSettings, SecKeychain};
 
-use {Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
+use crate::{Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
 
 static SET_AT_EXIT: Once = Once::new();
 
