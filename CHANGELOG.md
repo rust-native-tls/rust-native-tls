@@ -1,6 +1,9 @@
 # Change Log
 
-## [Unreleased]
+## [v0.2.15]
+
+* Set default minimum TLS version to 1.2 (TLS 1.1 has been deprecated since 2021)
+* Upgraded code to edition 2021
 
 ## [v0.2.12]
 
