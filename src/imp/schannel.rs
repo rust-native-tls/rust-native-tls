@@ -102,7 +102,7 @@ impl Identity {
         }
 
         let mut store = Memory::new()?.into_store();
-        let mut cert_iter = pem::PemBlock::new(pem).into_iter();
+        let mut cert_iter = pem::PemBlock::new(pem);
         let leaf = cert_iter.next().ok_or_else(|| {
             io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -175,8 +175,11 @@ impl Certificate {
 
     pub fn stack_from_pem(buf: &[u8]) -> Result<Vec<Certificate>, Error> {
         pem::PemBlock::new(buf)
-            .iter()
-            .map(|pem| CertContext::from_pem(pem).map(Certificate))
+            .map(|pem| {
+                CertContext::from_pem(std::str::from_utf8(pem).map_err(io::Error::other)?)
+                    .map(Certificate)
+            })
+            .map(|res| res.map_err(Error))
             .collect()
     }
 
