@@ -111,7 +111,7 @@ impl Identity {
 
         let cert = items
             .certificates
-            .get(0)
+            .first()
             .ok_or_else(|| Error(base::Error::from(errSecParam)))?;
         let ident = SecIdentity::with_certificate(&[keychain], cert)?;
         Ok(Identity {
@@ -194,7 +194,7 @@ fn random_password() -> Result<String, Error> {
         .map_err(|_| Error(base::Error::from(errSecIO)))?;
     let mut s = String::with_capacity(2 * bytes.len());
     for byte in bytes {
-        write!(s, "{:02X}", byte).map_err(|_| Error(base::Error::from(errSecIO)))?;
+        write!(s, "{byte:02X}").map_err(|_| Error(base::Error::from(errSecIO)))?;
     }
     Ok(s)
 }

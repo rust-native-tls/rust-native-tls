@@ -12,7 +12,7 @@ use crate::{TlsAcceptorBuilder, TlsConnectorBuilder};
 
 const SEC_E_NO_CREDENTIALS: u32 = 0x8009030E;
 
-static PROTOCOLS: &'static [Protocol] = &[
+static PROTOCOLS: &[Protocol] = &[
     Protocol::Ssl3,
     Protocol::Tls10,
     Protocol::Tls11,
@@ -125,7 +125,7 @@ impl Identity {
             Ok(container) => container,
             Err(_) => options.new_keyset(true).acquire(type_)?,
         };
-        container.import().import_pkcs8_pem(&key)?;
+        container.import().import_pkcs8_pem(key)?;
 
         cert.set_key_prov_info()
             .container(&name)
@@ -188,14 +188,14 @@ impl Certificate {
     }
 }
 
-pub struct MidHandshakeTlsStream<S>(tls_stream::MidHandshakeTlsStream<S>);
+pub struct MidHandshakeTlsStream<S>(Box<tls_stream::MidHandshakeTlsStream<S>>);
 
 impl<S> fmt::Debug for MidHandshakeTlsStream<S>
 where
     S: fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, fmt)
+        fmt::Debug::fmt(&*self.0, fmt)
     }
 }
 
@@ -231,7 +231,7 @@ impl<S> From<tls_stream::HandshakeError<S>> for HandshakeError<S> {
         match e {
             tls_stream::HandshakeError::Failure(e) => HandshakeError::Failure(e.into()),
             tls_stream::HandshakeError::Interrupted(s) => {
-                HandshakeError::WouldBlock(MidHandshakeTlsStream(s))
+                HandshakeError::WouldBlock(MidHandshakeTlsStream(Box::new(s)))
             }
         }
     }
@@ -300,10 +300,8 @@ impl TlsConnector {
         } else if self.disable_built_in_roots {
             let roots_copy = self.roots.clone();
             builder.verify_callback(move |res| {
-                if let Err(err) = res.result() {
-                    // Propagate previous error encountered during normal cert validation.
-                    return Err(err);
-                }
+                // Propagate previous error encountered during normal cert validation.
+                res.result()?;
 
                 if let Some(chain) = res.chain() {
                     if chain
@@ -314,8 +312,7 @@ impl TlsConnector {
                     }
                 }
 
-                Err(io::Error::new(
-                    io::ErrorKind::Other,
+                Err(io::Error::other(
                     "unable to find any user-specified roots in the final cert chain",
                 ))
             });
@@ -480,7 +477,7 @@ mod pem {
                 Some(end) => end + begin + 1,
                 None => last,
             };
-            return Some(&self.pem_block[begin..self.cur_end].as_bytes());
+            Some(&self.pem_block.as_bytes()[begin..self.cur_end])
         }
     }
 

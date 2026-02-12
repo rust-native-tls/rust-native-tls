@@ -26,7 +26,7 @@ fn main() {
         let read = stream.read(&mut buf).unwrap();
         let received = std::str::from_utf8(&buf[0..read]).unwrap();
         stream
-            .write_all(format!("received '{}'", received).as_bytes())
+            .write_all(format!("received '{received}'").as_bytes())
             .unwrap();
     }
 

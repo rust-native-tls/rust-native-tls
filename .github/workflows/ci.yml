@@ -62,3 +62,4 @@ jobs:
           path: ~/.cargo/registry/index
           key: index-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
       - run: cargo check -v --all --target aarch64-apple-ios --target x86_64-pc-windows-gnu
+      - run: cargo clippy --target aarch64-apple-ios --target x86_64-pc-windows-gnu

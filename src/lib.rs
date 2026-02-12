@@ -201,8 +201,8 @@ impl Certificate {
 
     /// Parses some PEM-formatted X509 certificates.
     pub fn stack_from_pem(buf: &[u8]) -> Result<Vec<Certificate>> {
-        let mut certs = imp::Certificate::stack_from_pem(buf)?;
-        Ok(certs.drain(..).map(Certificate).collect())
+        let certs = imp::Certificate::stack_from_pem(buf)?;
+        Ok(certs.into_iter().map(Certificate).collect())
     }
 
     /// Returns the DER-encoded representation of this certificate.
@@ -226,11 +226,13 @@ where
 
 impl<S> MidHandshakeTlsStream<S> {
     /// Returns a shared reference to the inner stream.
+    #[must_use]
     pub fn get_ref(&self) -> &S {
         self.0.get_ref()
     }
 
     /// Returns a mutable reference to the inner stream.
+    #[must_use]
     pub fn get_mut(&mut self) -> &mut S {
         self.0.get_mut()
     }
@@ -482,6 +484,7 @@ impl TlsConnector {
     }
 
     /// Returns a new builder for a `TlsConnector`.
+    #[must_use]
     pub fn builder() -> TlsConnectorBuilder {
         TlsConnectorBuilder {
             identity: None,
@@ -611,6 +614,7 @@ impl TlsAcceptor {
     /// Returns a new builder for a `TlsAcceptor`.
     ///
     /// The identity acts as the server's private key/certificate chain.
+    #[must_use]
     pub fn builder(identity: Identity) -> TlsAcceptorBuilder {
         TlsAcceptorBuilder {
             identity,
@@ -647,11 +651,13 @@ impl<S: fmt::Debug> fmt::Debug for TlsStream<S> {
 
 impl<S> TlsStream<S> {
     /// Returns a shared reference to the inner stream.
+    #[must_use]
     pub fn get_ref(&self) -> &S {
         self.0.get_ref()
     }
 
     /// Returns a mutable reference to the inner stream.
+    #[must_use]
     pub fn get_mut(&mut self) -> &mut S {
         self.0.get_mut()
     }
