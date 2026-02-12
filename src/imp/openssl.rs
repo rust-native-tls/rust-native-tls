@@ -276,7 +276,7 @@ impl TlsConnector {
                 debug!("load_verify_locations cert file error: {:?}", e);
             }
         }
-        if let Some(cert_dir) = &PROBE_RESULT.cert_dir {
+        for cert_dir in &PROBE_RESULT.cert_dir {
             if let Err(e) = connector.load_verify_locations(None, Some(cert_dir)) {
                 debug!("load_verify_locations cert dir error: {:?}", e);
             }
