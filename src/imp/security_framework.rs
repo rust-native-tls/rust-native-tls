@@ -2,17 +2,19 @@ use security_framework::base;
 use security_framework::certificate::SecCertificate;
 use security_framework::identity::SecIdentity;
 use security_framework::import_export::{ImportedIdentity, Pkcs12ImportOptions};
+#[cfg(target_os = "macos")]
 use security_framework::random::SecRandom;
 use security_framework::secure_transport::{
     self, ClientBuilder, SslConnectionType, SslContext, SslProtocol, SslProtocolSide,
 };
+#[cfg(target_os = "macos")]
 use security_framework_sys::base::{errSecIO, errSecParam};
 use std::error;
 use std::fmt;
 use std::io;
 use std::str;
-use std::sync::Mutex;
-use std::sync::Once;
+#[cfg(target_os = "macos")]
+use std::sync::{Mutex, Once};
 
 #[cfg(not(any(
     target_os = "ios",
@@ -54,6 +56,7 @@ use security_framework::os::macos::keychain::{self, KeychainSettings, SecKeychai
 
 use crate::{Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
 
+#[cfg(target_os = "macos")]
 static SET_AT_EXIT: Once = Once::new();
 
 #[cfg(not(any(
@@ -232,6 +235,7 @@ impl Identity {
     }
 }
 
+#[cfg(target_os = "macos")]
 fn random_password() -> Result<String, Error> {
     use std::fmt::Write;
     let mut bytes = [0_u8; 10];
@@ -292,7 +296,7 @@ impl Certificate {
     }
 
     #[cfg(target_os = "ios")]
-    pub fn stack_from_pem(buf: &[u8]) -> Result<Vec<Certificate>, Error> {
+    pub fn stack_from_pem(_buf: &[u8]) -> Result<Vec<Certificate>, Error> {
         panic!("Not implemented on iOS");
     }
 
@@ -494,6 +498,7 @@ impl TlsAcceptor {
 
 pub struct TlsStream<S> {
     stream: secure_transport::SslStream<S>,
+    #[cfg_attr(not(target_os = "macos"), allow(unused))]
     cert: Option<SecCertificate>,
 }
 
@@ -656,6 +661,7 @@ impl<S: io::Read + io::Write> io::Write for TlsStream<S> {
     }
 }
 
+#[cfg(target_os = "macos")]
 enum Digest {
     Sha224,
     Sha256,
@@ -663,29 +669,34 @@ enum Digest {
     Sha512,
 }
 
+#[cfg(target_os = "macos")]
 impl Digest {
     fn hash(&self, data: &[u8]) -> Vec<u8> {
+        const CC_SHA224_DIGEST_LENGTH: usize = 28;
+        const CC_SHA256_DIGEST_LENGTH: usize = 32;
+        const CC_SHA384_DIGEST_LENGTH: usize = 48;
+        const CC_SHA512_DIGEST_LENGTH: usize = 64;
         unsafe {
-            assert!(data.len() <= CC_LONG::max_value() as usize);
+            assert!(data.len() <= u32::MAX as usize);
             match *self {
                 Digest::Sha224 => {
                     let mut buf = [0; CC_SHA224_DIGEST_LENGTH];
-                    CC_SHA224(data.as_ptr(), data.len() as CC_LONG, buf.as_mut_ptr());
+                    CC_SHA224(data.as_ptr(), data.len() as u32, buf.as_mut_ptr());
                     buf.to_vec()
                 }
                 Digest::Sha256 => {
                     let mut buf = [0; CC_SHA256_DIGEST_LENGTH];
-                    CC_SHA256(data.as_ptr(), data.len() as CC_LONG, buf.as_mut_ptr());
+                    CC_SHA256(data.as_ptr(), data.len() as u32, buf.as_mut_ptr());
                     buf.to_vec()
                 }
                 Digest::Sha384 => {
                     let mut buf = [0; CC_SHA384_DIGEST_LENGTH];
-                    CC_SHA384(data.as_ptr(), data.len() as CC_LONG, buf.as_mut_ptr());
+                    CC_SHA384(data.as_ptr(), data.len() as u32, buf.as_mut_ptr());
                     buf.to_vec()
                 }
                 Digest::Sha512 => {
                     let mut buf = [0; CC_SHA512_DIGEST_LENGTH];
-                    CC_SHA512(data.as_ptr(), data.len() as CC_LONG, buf.as_mut_ptr());
+                    CC_SHA512(data.as_ptr(), data.len() as u32, buf.as_mut_ptr());
                     buf.to_vec()
                 }
             }
@@ -693,17 +704,10 @@ impl Digest {
     }
 }
 
-// FIXME ideally we'd pull these in from elsewhere
-const CC_SHA224_DIGEST_LENGTH: usize = 28;
-const CC_SHA256_DIGEST_LENGTH: usize = 32;
-const CC_SHA384_DIGEST_LENGTH: usize = 48;
-const CC_SHA512_DIGEST_LENGTH: usize = 64;
-#[allow(non_camel_case_types)]
-type CC_LONG = u32;
-
+#[cfg(target_os = "macos")]
 extern "C" {
-    fn CC_SHA224(data: *const u8, len: CC_LONG, md: *mut u8) -> *mut u8;
-    fn CC_SHA256(data: *const u8, len: CC_LONG, md: *mut u8) -> *mut u8;
-    fn CC_SHA384(data: *const u8, len: CC_LONG, md: *mut u8) -> *mut u8;
-    fn CC_SHA512(data: *const u8, len: CC_LONG, md: *mut u8) -> *mut u8;
+    fn CC_SHA224(data: *const u8, len: u32, md: *mut u8) -> *mut u8;
+    fn CC_SHA256(data: *const u8, len: u32, md: *mut u8) -> *mut u8;
+    fn CC_SHA384(data: *const u8, len: u32, md: *mut u8) -> *mut u8;
+    fn CC_SHA512(data: *const u8, len: u32, md: *mut u8) -> *mut u8;
 }
