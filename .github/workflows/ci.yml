@@ -44,12 +44,12 @@ jobs:
           key: index-${{ runner.os }}-${{ github.run_number }}
           restore-keys: |
             index-${{ runner.os }}-
-      - run: cargo generate-lockfile
+      - run: cargo update -p getrandom --precise 0.3.1 # MSRV
       - uses: actions/cache@v4
         with:
           path: ~/.cargo/registry/cache
           key: registry-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
-      - run: cargo fetch
+      - run: cargo fetch --locked
       - uses: actions/cache@v4
         with:
           path: target
