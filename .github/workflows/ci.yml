@@ -47,3 +47,18 @@ jobs:
           path: target
           key: target-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - run: cargo test --features vendored
+  check:
+    name: check-only
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: aarch64-apple-ios,x86_64-pc-windows-gnu
+          components: clippy
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry/index
+          key: index-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
+      - run: cargo check -v --all --target aarch64-apple-ios --target x86_64-pc-windows-gnu
