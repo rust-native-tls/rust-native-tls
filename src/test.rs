@@ -17,6 +17,7 @@ macro_rules! p {
 }
 
 #[test]
+#[cfg(not(target_vendor = "apple"))]
 fn connect_google_tls13() {
     let builder = p!(
             TlsConnector::builder()

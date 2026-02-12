@@ -332,7 +332,8 @@ pub enum Protocol {
     Tlsv11,
     /// The TLS 1.2 protocol.
     Tlsv12,
-    /// The TLS 1.3 protocol.
+    /// The TLS 1.3 protocol. Not supported on macOS/iOS.
+    #[cfg_attr(target_vendor = "apple", deprecated(note = "Apple hasn't implemented TLS 1.3 in Security.framework. You'll get error -9830"))]
     Tlsv13,
 }
 
