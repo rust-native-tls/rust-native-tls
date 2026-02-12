@@ -11,16 +11,10 @@ on:
 env:
   RUSTFLAGS: -Dwarnings
   RUST_BACKTRACE: 1
+  CARGO_PROFILE_DEV_DEBUG: 0
+  CARGO_INCREMENTAL: 0
 
 jobs:
-  rustfmt:
-    name: rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: sfackler/actions/rustup@master
-      - uses: sfackler/actions/rustfmt@master
-
   windows:
     strategy:
       fail-fast: false
@@ -33,17 +27,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
-      - uses: sfackler/actions/rustup@master
+      - uses: dtolnay/rust-toolchain@master
         with:
-          version: 1.80.0
+          toolchain: 1.80.0
       - run: echo "::set-output name=version::$(rustc --version)"
         id: rust-version
       - uses: actions/cache@v4
         with:
           path: ~/.cargo/registry/index
-          key: index-${{ runner.os }}-${{ github.run_number }}
-          restore-keys: |
-            index-${{ runner.os }}-
+          key: index-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
       - run: cargo update -p getrandom --precise 0.3.1 # MSRV
       - uses: actions/cache@v4
         with:
@@ -54,5 +46,4 @@ jobs:
         with:
           path: target
           key: target-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
-      - run: cargo test --features vendored
       - run: cargo test --features vendored
