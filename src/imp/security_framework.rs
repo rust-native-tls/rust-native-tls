@@ -43,7 +43,6 @@ fn convert_protocol(protocol: Protocol) -> SslProtocol {
         Protocol::Tlsv10 => SslProtocol::TLS1,
         Protocol::Tlsv11 => SslProtocol::TLS11,
         Protocol::Tlsv12 => SslProtocol::TLS12,
-        #[allow(deprecated)]
         Protocol::Tlsv13 => SslProtocol::TLS13,
     }
 }
@@ -370,11 +369,18 @@ impl TlsConnector {
         S: io::Read + io::Write,
     {
         let mut builder = ClientBuilder::new();
-        if let Some(min) = self.min_protocol {
-            builder.protocol_min(convert_protocol(min));
+        let min = self.min_protocol.map(convert_protocol);
+        let max = self.max_protocol.map(convert_protocol);
+        if let Some(min) = min {
+            // If the unsupported TLS 1.3 is the minimum, then let it fail
+            builder.protocol_min(min);
         }
-        if let Some(max) = self.max_protocol {
-            builder.protocol_max(convert_protocol(max));
+        if let Some(max) = max {
+            builder.protocol_max(match max {
+                // If TLS 1.3 is allowed but not required, then use the latest that is actually supported - 1.2
+                SslProtocol::TLS13 if min != Some(SslProtocol::TLS13) => SslProtocol::TLS12,
+                other => other,
+            });
         }
         if let Some(identity) = self.identity.as_ref() {
             builder.identity(&identity.identity, &identity.chain);

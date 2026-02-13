@@ -309,14 +309,14 @@ impl<S> From<imp::HandshakeError<S>> for HandshakeError<S> {
 #[derive(Debug, Copy, Clone)]
 #[non_exhaustive]
 pub enum Protocol {
-    /// The SSL 3.0 protocol.
+    /// The SSL 3.0 protocol is insecure. Don't use it.
     ///
     /// # Warning
     ///
     /// SSL 3.0 has severe security flaws, and should not be used unless absolutely necessary. If
     /// you are not sure if you need to enable this protocol, you should not.
     Sslv3,
-    /// The TLS 1.0 protocol.
+    /// The TLS 1.0 protocol is insecure. Don't use it.
     ///
     /// # Warning
     ///
@@ -331,7 +331,9 @@ pub enum Protocol {
     /// The TLS 1.2 protocol.
     Tlsv12,
     /// The TLS 1.3 protocol. Not supported on macOS/iOS.
-    #[cfg_attr(target_vendor = "apple", deprecated(note = "Apple hasn't implemented TLS 1.3 in Security.framework. You'll get error -9830"))]
+    ///
+    /// Apple platforms will fall back to TLS 1.2 when it's allowed by the minimum protocol version setting,
+    /// or fail due to lack of TLS 1.3 support (with error -9830).
     Tlsv13,
 }
 
