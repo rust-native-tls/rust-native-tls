@@ -226,18 +226,18 @@ impl Certificate {
         panic!("Not implemented on iOS, tvOS, watchOS or visionOS");
     }
 
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(target_os = "macos")]
     pub fn stack_from_pem(buf: &[u8]) -> Result<Vec<Certificate>, Error> {
         let mut items = SecItems::default();
         ImportOptions::new().items(&mut items).import(buf)?;
         if items.identities.is_empty() && items.keys.is_empty() {
-            Ok(items.certificates.drain(..).map(Certificate).collect())
+            Ok(items.certificates.into_iter().map(Certificate).collect())
         } else {
             Err(Error(base::Error::from(errSecParam)))
         }
     }
 
-    #[cfg(target_os = "ios")]
+    #[cfg(not(target_os = "macos"))]
     pub fn stack_from_pem(_buf: &[u8]) -> Result<Vec<Certificate>, Error> {
         panic!("Not implemented on iOS");
     }
