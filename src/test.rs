@@ -19,11 +19,10 @@ macro_rules! p {
 #[test]
 #[cfg(not(target_vendor = "apple"))]
 fn connect_google_tls13() {
-    let builder = p!(
-            TlsConnector::builder()
-            .min_protocol_version(Some(Protocol::Tlsv13))
-            .max_protocol_version(Some(Protocol::Tlsv13))
-            .build());
+    let builder = p!(TlsConnector::builder()
+        .min_protocol_version(Some(Protocol::Tlsv13))
+        .max_protocol_version(Some(Protocol::Tlsv13))
+        .build());
     let s = p!(TcpStream::connect("google.com:443"));
     let mut socket = p!(builder.connect("google.com", s));
 

@@ -242,6 +242,7 @@ impl Certificate {
         panic!("Not implemented on iOS");
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     pub fn to_der(&self) -> Result<Vec<u8>, Error> {
         Ok(self.0.to_der())
     }
@@ -329,6 +330,7 @@ where
 }
 
 #[derive(Clone, Debug)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct TlsConnector {
     identity: Option<Identity>,
     min_protocol: Option<Protocol>,
@@ -343,8 +345,9 @@ pub struct TlsConnector {
 }
 
 impl TlsConnector {
-    pub fn new(builder: &TlsConnectorBuilder) -> Result<TlsConnector, Error> {
-        Ok(TlsConnector {
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn new(builder: &TlsConnectorBuilder) -> Result<Self, Error> {
+        Ok(Self {
             identity: builder.identity.as_ref().map(|i| i.0.clone()),
             min_protocol: builder.min_protocol,
             max_protocol: builder.max_protocol,
@@ -404,8 +407,9 @@ pub struct TlsAcceptor {
 }
 
 impl TlsAcceptor {
-    pub fn new(builder: &TlsAcceptorBuilder) -> Result<TlsAcceptor, Error> {
-        Ok(TlsAcceptor {
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn new(builder: &TlsAcceptorBuilder) -> Result<Self, Error> {
+        Ok(Self {
             identity: builder.identity.0.clone(),
             min_protocol: builder.min_protocol,
             max_protocol: builder.max_protocol,
@@ -467,9 +471,8 @@ impl<S: io::Read + io::Write> TlsStream<S> {
 
     #[allow(deprecated)]
     pub fn peer_certificate(&self) -> Result<Option<Certificate>, Error> {
-        let trust = match self.stream.context().peer_trust2()? {
-            Some(trust) => trust,
-            None => return Ok(None),
+        let Some(trust) = self.stream.context().peer_trust2()? else {
+            return Ok(None);
         };
         trust.evaluate()?;
 
@@ -512,28 +515,24 @@ impl<S: io::Read + io::Write> TlsStream<S> {
             },
         };
 
-        let property = match cert
+        let Some(property) = cert
             .properties(Some(&[CertificateOid::x509_v1_signature_algorithm()]))
             .ok()
             .and_then(|p| p.get(CertificateOid::x509_v1_signature_algorithm()))
-        {
-            Some(property) => property,
-            None => return Ok(None),
+        else {
+            return Ok(None);
         };
 
-        let section = match property.get() {
-            PropertyType::Section(section) => section,
-            _ => return Ok(None),
+        let PropertyType::Section(section) = property.get() else {
+            return Ok(None);
         };
 
-        let algorithm = match section.iter().find(|p| p.label() == "Algorithm") {
-            Some(property) => property,
-            None => return Ok(None),
+        let Some(algorithm) = section.iter().find(|p| p.label() == "Algorithm") else {
+            return Ok(None);
         };
 
-        let algorithm = match algorithm.get() {
-            PropertyType::String(algorithm) => algorithm,
-            _ => return Ok(None),
+        let PropertyType::String(algorithm) = algorithm.get() else {
+            return Ok(None);
         };
 
         let digest = match &*algorithm.to_string() {

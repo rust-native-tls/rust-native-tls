@@ -299,10 +299,8 @@ where
 impl<S> From<imp::HandshakeError<S>> for HandshakeError<S> {
     fn from(e: imp::HandshakeError<S>) -> HandshakeError<S> {
         match e {
-            imp::HandshakeError::Failure(e) => HandshakeError::Failure(Error(e)),
-            imp::HandshakeError::WouldBlock(s) => {
-                HandshakeError::WouldBlock(MidHandshakeTlsStream(s))
-            }
+            imp::HandshakeError::Failure(e) => Self::Failure(Error(e)),
+            imp::HandshakeError::WouldBlock(s) => Self::WouldBlock(MidHandshakeTlsStream(s)),
         }
     }
 }
@@ -340,6 +338,7 @@ pub enum Protocol {
 /// A builder for `TlsConnector`s.
 ///
 /// You can get one from [`TlsConnector::builder()`](TlsConnector::builder)
+#[allow(clippy::struct_excessive_bools)]
 pub struct TlsConnectorBuilder {
     identity: Option<Identity>,
     min_protocol: Option<Protocol>,
@@ -418,10 +417,7 @@ impl TlsConnectorBuilder {
     /// You should think very carefully before using this method. If invalid certificates are trusted, *any*
     /// certificate for *any* site will be trusted for use. This includes expired certificates. This introduces
     /// significant vulnerabilities, and should only be used as a last resort.
-    pub fn danger_accept_invalid_certs(
-        &mut self,
-        accept_invalid_certs: bool,
-    ) -> &mut TlsConnectorBuilder {
+    pub fn danger_accept_invalid_certs(&mut self, accept_invalid_certs: bool) -> &mut Self {
         self.accept_invalid_certs = accept_invalid_certs;
         self
     }
@@ -443,10 +439,7 @@ impl TlsConnectorBuilder {
     /// You should think very carefully before using this method. If invalid hostnames are trusted, *any* valid
     /// certificate for *any* site will be trusted for use. This introduces significant vulnerabilities, and should
     /// only be used as a last resort.
-    pub fn danger_accept_invalid_hostnames(
-        &mut self,
-        accept_invalid_hostnames: bool,
-    ) -> &mut TlsConnectorBuilder {
+    pub fn danger_accept_invalid_hostnames(&mut self, accept_invalid_hostnames: bool) -> &mut Self {
         self.accept_invalid_hostnames = accept_invalid_hostnames;
         self
     }
