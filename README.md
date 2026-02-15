@@ -1,4 +1,4 @@
-# rust-native-tls
+# native-tls crate
 
 [Documentation](https://docs.rs/native-tls)
 
@@ -8,11 +8,16 @@ Specifically, this crate uses SChannel on Windows (via the [`schannel`] crate),
 Secure Transport on macOS (via the [`security-framework`] crate), and OpenSSL (via
 the [`openssl`] crate) on all other platforms.
 
+Using platform-native TLS library can reduce binary sizes, compilation times,
+and improve compatibility with system-wide proxies and CA certificate stores.
+
 [`schannel`]: https://crates.io/crates/schannel
 [`security-framework`]: https://crates.io/crates/security-framework
 [`openssl`]: https://crates.io/crates/openssl
 
 ## Installation
+
+`cargo add native-tls` or
 
 ```toml
 # Cargo.toml
@@ -25,8 +30,6 @@ native-tls = "0.2"
 An example client looks like:
 
 ```rust,ignore
-extern crate native_tls;
-
 use native_tls::TlsConnector;
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -47,8 +50,6 @@ fn main() {
 To accept connections as a server from remote clients:
 
 ```rust,ignore
-extern crate native_tls;
-
 use native_tls::{Identity, TlsAcceptor, TlsStream};
 use std::fs::File;
 use std::io::{Read};
@@ -86,9 +87,20 @@ fn main() {
 }
 ```
 
-# License
+## Supported features
 
-`rust-native-tls` is primarily distributed under the terms of both the MIT
+This crate supports the following features out of the box:
+* TLS/SSL client communication
+* TLS/SSL server communication
+* PKCS#12 encoded identities
+* X.509/PKCS#8 encoded identities
+* Secure-by-default for client and server
+    * Includes hostname verification for clients
+* Supports asynchronous I/O for both the server and the client
+
+## License
+
+`native-tls` is primarily distributed under the terms of both the MIT
 license and the Apache License (Version 2.0), with portions covered by various
 BSD-like licenses.
 
