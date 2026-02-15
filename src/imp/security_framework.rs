@@ -340,7 +340,7 @@ pub struct TlsConnector {
     danger_accept_invalid_certs: bool,
     disable_built_in_roots: bool,
     #[cfg(feature = "alpn")]
-    alpn: Vec<String>,
+    alpn: Vec<Box<str>>,
 }
 
 impl TlsConnector {
@@ -394,7 +394,7 @@ impl TlsConnector {
         #[cfg(feature = "alpn")]
         {
             if !self.alpn.is_empty() {
-                builder.alpn_protocols(&self.alpn.iter().map(String::as_str).collect::<Vec<_>>());
+                builder.alpn_protocols(&self.alpn.iter().map(|s| &**s).collect::<Vec<_>>());
             }
         }
 

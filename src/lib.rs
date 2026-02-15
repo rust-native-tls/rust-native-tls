@@ -352,7 +352,7 @@ pub struct TlsConnectorBuilder {
     use_sni: bool,
     disable_built_in_roots: bool,
     #[cfg(feature = "alpn")]
-    alpn: Vec<String>,
+    alpn: Vec<Box<str>>,
 }
 
 impl TlsConnectorBuilder {
@@ -407,7 +407,7 @@ impl TlsConnectorBuilder {
     #[cfg(feature = "alpn")]
     #[cfg_attr(docsrs, doc(cfg(feature = "alpn")))]
     pub fn request_alpns(&mut self, protocols: &[&str]) -> &mut TlsConnectorBuilder {
-        self.alpn = protocols.iter().map(|s| (*s).to_owned()).collect();
+        self.alpn = protocols.iter().copied().map(Box::from).collect();
         self
     }
 
