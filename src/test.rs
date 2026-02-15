@@ -8,35 +8,32 @@ use std::thread;
 use super::*;
 
 #[cfg(target_env = "sgx")]
-lazy_static::lazy_static! {
-    static ref ROOT_CERTIFICATES: Vec<Certificate> = {
-        // except digicert just because we have to provide any exclusion to get the rest
-        let mut root_certs = ureq::get("https://mkcert.org/generate/all/except/digicert")
-            .call()
-            .unwrap()
-            .into_string()
-            .unwrap();
-        root_certs.push('\0');
-        let root_certs = mbedtls::x509::certificate::Certificate::from_pem_multiple(root_certs.as_bytes()).unwrap();
-        root_certs.iter().map(|cert| Certificate::from_der(cert.as_der()).unwrap()).collect()
-    };
-}
+static ROOT_CERTIFICATES: std::sync::LazyLock<Vec<Certificate>> = std::sync::LazyLock::new(|| {
+    // except digicert just because we have to provide any exclusion to get the rest
+    let mut root_certs = ureq::get("https://mkcert.org/generate/all/except/digicert")
+        .call()
+        .unwrap()
+        .into_string()
+        .unwrap();
+    root_certs.push('\0');
+    let root_certs =
+        mbedtls::x509::certificate::Certificate::from_pem_multiple(root_certs.as_bytes()).unwrap();
+    root_certs
+        .iter()
+        .map(|cert| Certificate::from_der(cert.as_der()).unwrap())
+        .collect()
+});
 
 // for mbedtls there is no 'standard' way to get default ca root chain
 // so for tests where some default is needed we manually add mozilla trust chain.
-macro_rules! connector {
-    () => {{
-        #[cfg(target_env = "sgx")]
-        {
-            let mut builder = TlsConnector::builder();
-            ROOT_CERTIFICATES.iter().for_each(|cert| {
-                builder.add_root_certificate(cert.clone());
-            });
-            builder
-        }
-        #[cfg(not(target_env = "sgx"))]
-        TlsConnector::builder()
-    }};
+fn connector() -> TlsConnectorBuilder {
+    #[allow(unused_mut)]
+    let mut builder = TlsConnector::builder();
+    #[cfg(target_env = "sgx")]
+    for cert in ROOT_CERTIFICATES.iter() {
+        builder.add_root_certificate(cert.clone());
+    }
+    builder
 }
 
 macro_rules! p {
@@ -88,7 +85,7 @@ fn connect_google_tls12_13() {
 
 #[test]
 fn connect_google() {
-    let builder = p!(connector!().build());
+    let builder = p!(connector().build());
     let s = p!(TcpStream::connect("google.com:443"));
     let mut socket = p!(builder.connect("google.com", s));
 
@@ -102,14 +99,14 @@ fn connect_google() {
 
 #[test]
 fn connect_bad_hostname() {
-    let builder = p!(connector!().build());
+    let builder = p!(connector().build());
     let s = p!(TcpStream::connect("google.com:443"));
     builder.connect("goggle.com", s).unwrap_err();
 }
 
 #[test]
 fn connect_bad_hostname_ignored() {
-    let builder = p!(connector!().danger_accept_invalid_hostnames(true).build());
+    let builder = p!(connector().danger_accept_invalid_hostnames(true).build());
     let s = p!(TcpStream::connect("google.com:443"));
     builder.connect("goggle.com", s).unwrap();
 }
@@ -475,7 +472,7 @@ fn shutdown() {
 #[test]
 #[cfg(feature = "alpn")]
 fn alpn_google_h2() {
-    let builder = p!(connector!().request_alpns(&["h2"]).build());
+    let builder = p!(connector().request_alpns(&["h2"]).build());
     let s = p!(TcpStream::connect("google.com:443"));
     let socket = p!(builder.connect("google.com", s));
     let alpn = p!(socket.negotiated_alpn());
@@ -485,7 +482,7 @@ fn alpn_google_h2() {
 #[test]
 #[cfg(feature = "alpn")]
 fn alpn_google_invalid() {
-    let builder = p!(connector!().request_alpns(&["h2c"]).build());
+    let builder = p!(connector().request_alpns(&["h2c"]).build());
     let s = p!(TcpStream::connect("google.com:443"));
     let socket = p!(builder.connect("google.com", s));
     let alpn = p!(socket.negotiated_alpn());
@@ -495,7 +492,7 @@ fn alpn_google_invalid() {
 #[test]
 #[cfg(feature = "alpn")]
 fn alpn_google_none() {
-    let builder = p!(connector!().build());
+    let builder = p!(connector().build());
     let s = p!(TcpStream::connect("google.com:443"));
     let socket = p!(builder.connect("google.com", s));
     let alpn = p!(socket.negotiated_alpn());
