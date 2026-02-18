@@ -67,3 +67,28 @@ jobs:
       - run: cargo check -v --all --no-default-features --target aarch64-apple-ios --target x86_64-pc-windows-gnu
       - run: cargo check -v --all --all-features --target aarch64-apple-ios --target x86_64-pc-windows-gnu
       - run: cargo clippy --target aarch64-apple-ios --target x86_64-pc-windows-gnu
+
+  package:
+    name: package-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            target
+          key: package-target-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
+      - run: cargo package -v --all-features
+      - uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            target
+          key: package-target-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
+      - run: cargo package -v --no-default-features

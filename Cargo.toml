@@ -1,6 +1,6 @@
 [package]
 name = "native-tls"
-version = "0.2.17"
+version = "0.2.18"
 authors = ["Steven Fackler <sfackler@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "A wrapper over a platform's native TLS implementation"
@@ -11,7 +11,7 @@ keywords = ["tls", "https", "secure-transport", "platform", "abstraction"]
 readme = "README.md"
 rust-version = "1.80"
 edition = "2021"
-include = ["src/**/*.rs", "LICENSE*"]
+include = ["src/**/*.rs", "build.rs", "LICENSE*"]
 
 [package.metadata.docs.rs]
 features = ["alpn"]
