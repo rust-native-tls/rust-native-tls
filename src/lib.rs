@@ -177,6 +177,7 @@ impl Identity {
     /// clients to allow them to build a chain to a trusted root.
     ///
     /// A certificate chain here means a series of PEM encoded certificates concatenated together.
+    #[cfg_attr(all(target_vendor = "apple", not(target_os = "macos")), deprecated(note = "Not available on iOS"))]
     pub fn from_pkcs8(pem: &[u8], key: &[u8]) -> Result<Identity> {
         let identity = imp::Identity::from_pkcs8(pem, key)?;
         Ok(Identity(identity))
@@ -195,12 +196,14 @@ impl Certificate {
     }
 
     /// Parses a PEM-formatted X509 certificate.
+    #[cfg_attr(all(target_vendor = "apple", not(target_os = "macos")), deprecated(note = "Not available on iOS"))]
     pub fn from_pem(pem: &[u8]) -> Result<Certificate> {
         let cert = imp::Certificate::from_pem(pem)?;
         Ok(Certificate(cert))
     }
 
     /// Parses some PEM-formatted X509 certificates.
+    #[cfg_attr(all(target_vendor = "apple", not(target_os = "macos")), deprecated(note = "Not available on iOS"))]
     pub fn stack_from_pem(buf: &[u8]) -> Result<Vec<Certificate>> {
         let certs = imp::Certificate::stack_from_pem(buf)?;
         Ok(certs.into_iter().map(Certificate).collect())

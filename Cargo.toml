@@ -17,7 +17,9 @@ features = ["alpn"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
+default = []
 vendored = ["openssl/vendored"]
+# Expose ALPN configuration
 alpn = ["security-framework/alpn"]
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
