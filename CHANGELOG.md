@@ -1,5 +1,10 @@
 # Change Log
 
+## [v0.2.17]
+
+* Added support for ALPN on the server side on non-Apple platforms.
+* Fixed iOS + ALPN feature flag.
+
 ## [v0.2.16]
 
 * Added TLS 1.3 as an option on non-Apple platforms. Apple platforms will fall back to TLS 1.2 when it's allowed, or fail due to lack of TLS 1.3 in the `Security.framework`.
