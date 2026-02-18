@@ -19,8 +19,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 vendored = ["openssl/vendored"]
-# Expose ALPN configuration
+# Expose ALPN configuration on client side
 alpn = ["security-framework/alpn"]
+# Expose ALPN configuration on server side (not available on Apple platforms)
+alpn-accept = []
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
 security-framework = "3.5.1"

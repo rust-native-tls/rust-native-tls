@@ -474,7 +474,7 @@ fn alpn_google_none() {
 }
 
 #[test]
-#[cfg(feature = "alpn")]
+#[cfg(feature = "alpn-accept")]
 #[cfg(not(any(target_os = "macos", target_os = "ios")))]
 fn alpn_server_side() {
     let keys = test_cert_gen::keys();

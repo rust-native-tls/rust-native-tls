@@ -389,8 +389,8 @@ impl TlsAcceptor {
         let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
         acceptor.set_private_key(&builder.identity.0.pkey)?;
         acceptor.set_certificate(&builder.identity.0.cert)?;
-        #[cfg(feature = "alpn")]
-        if !builder.alpn.is_empty() {
+        #[cfg(feature = "alpn-accept")]
+        if !builder.accept_alpn.is_empty() {
             let alpn_wire_format = alpn_wire_format(&builder.accept_alpn)?;
             acceptor.set_alpn_protos(&alpn_wire_format)?;
             // set uo ALPN selection routine - as select_next_proto
