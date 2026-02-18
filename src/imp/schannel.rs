@@ -3,10 +3,7 @@ use schannel::cert_store::{CertAdd, CertStore, Memory, PfxImportOptions};
 use schannel::crypt_prov::{AcquireOptions, ProviderType};
 use schannel::schannel_cred::{Direction, Protocol, SchannelCred};
 use schannel::tls_stream;
-use std::error;
-use std::fmt;
-use std::io;
-use std::str;
+use std::{error, fmt, io, str};
 
 use crate::{TlsAcceptorBuilder, TlsConnectorBuilder};
 
@@ -477,6 +474,7 @@ mod pem {
 
     impl<'a> Iterator for PemBlock<'a> {
         type Item = &'a [u8];
+
         fn next(&mut self) -> Option<Self::Item> {
             let last = self.pem_block.len();
             if self.cur_end >= last {
