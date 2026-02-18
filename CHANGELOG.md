@@ -1,5 +1,9 @@
 # Change Log
 
+## [v0.2.18]
+
+* Fixed min/max protocol selection fallback for very old OpenSSL versions.
+
 ## [v0.2.17]
 
 * Added support for ALPN on the server side on non-Apple platforms.
