@@ -30,22 +30,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.80.0
-      - run: echo "::set-output name=version::$(rustc --version)"
-        id: rust-version
       - uses: actions/cache@v4
         with:
-          path: ~/.cargo/registry/index
-          key: index-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+          key: cratesio-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
       - run: cargo update -p getrandom --precise 0.3.1 # MSRV
       - uses: actions/cache@v4
         with:
-          path: ~/.cargo/registry/cache
-          key: registry-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
-      - run: cargo fetch --locked
-      - uses: actions/cache@v4
-        with:
           path: target
-          key: target-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          key: target-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       - run: cargo test --features vendored
   check:
     name: check-only
@@ -59,8 +54,15 @@ jobs:
           components: clippy
       - uses: actions/cache@v4
         with:
-          path: ~/.cargo/registry/index
-          key: index-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+          key: cratesio-check-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
+      - run: cargo fetch --target aarch64-apple-ios --target x86_64-pc-windows-gnu
+      - uses: actions/cache@v4
+        with:
+          path: target
+          key: check-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
       - run: cargo check -v --all --no-default-features --target aarch64-apple-ios --target x86_64-pc-windows-gnu
       - run: cargo check -v --all --all-features --target aarch64-apple-ios --target x86_64-pc-windows-gnu
       - run: cargo clippy --target aarch64-apple-ios --target x86_64-pc-windows-gnu
