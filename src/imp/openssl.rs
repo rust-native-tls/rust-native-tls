@@ -393,10 +393,17 @@ impl TlsAcceptor {
         if !builder.accept_alpn.is_empty() {
             let alpn_wire_format = alpn_wire_format(&builder.accept_alpn)?;
             acceptor.set_alpn_protos(&alpn_wire_format)?;
-            // set uo ALPN selection routine - as select_next_proto
-            acceptor.set_alpn_select_callback(move |_: &mut SslRef, list: &[u8]| {
-                    openssl::ssl::select_next_proto(&alpn_wire_format, list).ok_or(
-                            openssl::ssl::AlpnError::NOACK)
+            // set up ALPN selection routine - as select_next_proto
+            acceptor.set_alpn_select_callback(move |_: &mut openssl::ssl::SslRef, client_list: &[u8]| {
+                openssl::ssl::select_next_proto(&alpn_wire_format, client_list).and_then(|selected| {
+                    if selected.is_empty() || selected.len() > client_list.len() {
+                        return None;
+                    }
+                    // return string from the client list to separate it from alpn_wire_format's lifetime
+                    // https://github.com/rust-openssl/rust-openssl/pull/2360#issuecomment-2651522324
+                    client_list.windows(selected.len()).find(|&item| item == selected)
+                })
+                .ok_or(openssl::ssl::AlpnError::NOACK)
             });
         }
         for cert in builder.identity.0.chain.iter() {
