@@ -71,9 +71,16 @@ fn supported_protocols(
                 | SslOptions::NO_TLSV1
                 | SslOptions::NO_TLSV1_1
         }
+        Some(Protocol::Tlsv13) => {
+            SslOptions::NO_SSLV2
+                | SslOptions::NO_SSLV3
+                | SslOptions::NO_TLSV1
+                | SslOptions::NO_TLSV1_1
+                | SslOptions::NO_TLSV1_2
+        }
     };
     options |= match max {
-        None | Some(Protocol::Tlsv12) => SslOptions::empty(),
+        None | Some(Protocol::Tlsv12) | Some(Protocol::Tlsv13) => SslOptions::empty(),
         Some(Protocol::Tlsv11) => SslOptions::NO_TLSV1_2,
         Some(Protocol::Tlsv10) => SslOptions::NO_TLSV1_1 | SslOptions::NO_TLSV1_2,
         Some(Protocol::Sslv3) => {

@@ -1,5 +1,9 @@
 # Change Log
 
+## [v0.2.18]
+
+* Fixed OpenSSL backend build: handle `Protocol::Tlsv13` in legacy min/max protocol matches (non-exhaustive match on Linux/OpenSSL).
+
 ## [v0.2.17]
 
 * Added support for ALPN on the server side on non-Apple platforms.
