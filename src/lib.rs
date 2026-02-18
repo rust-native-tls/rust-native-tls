@@ -37,6 +37,7 @@
 //! * `vendored` - If enabled, the crate will compile and statically link to a
 //!   vendored copy of OpenSSL. This feature has no effect on Windows and
 //!   macOS, where OpenSSL is not used.
+//! * `alpn` - enables `request_alpns()` for negotiating HTTP/2, etc.
 //!
 //! # Examples
 //!
@@ -176,6 +177,7 @@ impl Identity {
     /// clients to allow them to build a chain to a trusted root.
     ///
     /// A certificate chain here means a series of PEM encoded certificates concatenated together.
+    #[cfg_attr(all(target_vendor = "apple", not(target_os = "macos")), deprecated(note = "Not available on iOS"))]
     pub fn from_pkcs8(pem: &[u8], key: &[u8]) -> Result<Identity> {
         let identity = imp::Identity::from_pkcs8(pem, key)?;
         Ok(Identity(identity))
@@ -194,12 +196,14 @@ impl Certificate {
     }
 
     /// Parses a PEM-formatted X509 certificate.
+    #[cfg_attr(all(target_vendor = "apple", not(target_os = "macos")), deprecated(note = "Not available on iOS"))]
     pub fn from_pem(pem: &[u8]) -> Result<Certificate> {
         let cert = imp::Certificate::from_pem(pem)?;
         Ok(Certificate(cert))
     }
 
     /// Parses some PEM-formatted X509 certificates.
+    #[cfg_attr(all(target_vendor = "apple", not(target_os = "macos")), deprecated(note = "Not available on iOS"))]
     pub fn stack_from_pem(buf: &[u8]) -> Result<Vec<Certificate>> {
         let certs = imp::Certificate::stack_from_pem(buf)?;
         Ok(certs.into_iter().map(Certificate).collect())
@@ -309,14 +313,14 @@ impl<S> From<imp::HandshakeError<S>> for HandshakeError<S> {
 #[derive(Debug, Copy, Clone)]
 #[non_exhaustive]
 pub enum Protocol {
-    /// The SSL 3.0 protocol.
+    /// The SSL 3.0 protocol is insecure. Don't use it.
     ///
     /// # Warning
     ///
     /// SSL 3.0 has severe security flaws, and should not be used unless absolutely necessary. If
     /// you are not sure if you need to enable this protocol, you should not.
     Sslv3,
-    /// The TLS 1.0 protocol.
+    /// The TLS 1.0 protocol is insecure. Don't use it.
     ///
     /// # Warning
     ///
@@ -331,7 +335,9 @@ pub enum Protocol {
     /// The TLS 1.2 protocol.
     Tlsv12,
     /// The TLS 1.3 protocol. Not supported on macOS/iOS.
-    #[cfg_attr(target_vendor = "apple", deprecated(note = "Apple hasn't implemented TLS 1.3 in Security.framework. You'll get error -9830"))]
+    ///
+    /// Apple platforms will fall back to TLS 1.2 when it's allowed by the minimum protocol version setting,
+    /// or fail due to lack of TLS 1.3 support (with error -9830).
     Tlsv13,
 }
 
@@ -349,7 +355,7 @@ pub struct TlsConnectorBuilder {
     use_sni: bool,
     disable_built_in_roots: bool,
     #[cfg(feature = "alpn")]
-    alpn: Vec<String>,
+    alpn: Vec<Box<str>>,
 }
 
 impl TlsConnectorBuilder {
@@ -404,7 +410,7 @@ impl TlsConnectorBuilder {
     #[cfg(feature = "alpn")]
     #[cfg_attr(docsrs, doc(cfg(feature = "alpn")))]
     pub fn request_alpns(&mut self, protocols: &[&str]) -> &mut TlsConnectorBuilder {
-        self.alpn = protocols.iter().map(|s| (*s).to_owned()).collect();
+        self.alpn = protocols.iter().copied().map(Box::from).collect();
         self
     }
 

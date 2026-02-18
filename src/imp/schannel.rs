@@ -255,7 +255,7 @@ pub struct TlsConnector {
     accept_invalid_certs: bool,
     disable_built_in_roots: bool,
     #[cfg(feature = "alpn")]
-    alpn: Vec<String>,
+    alpn: Vec<Box<str>>,
 }
 
 impl TlsConnector {

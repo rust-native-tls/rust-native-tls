@@ -8,7 +8,9 @@ use security_framework::secure_transport::{
     self, ClientBuilder, SslConnectionType, SslContext, SslProtocol, SslProtocolSide,
 };
 #[cfg(target_os = "macos")]
-use security_framework_sys::base::{errSecIO, errSecParam};
+use security_framework_sys::base::errSecIO;
+#[cfg(any(feature = "alpn", target_os = "macos"))]
+use security_framework_sys::base::errSecParam;
 use std::error;
 use std::fmt;
 use std::io;
@@ -43,7 +45,6 @@ fn convert_protocol(protocol: Protocol) -> SslProtocol {
         Protocol::Tlsv10 => SslProtocol::TLS1,
         Protocol::Tlsv11 => SslProtocol::TLS11,
         Protocol::Tlsv12 => SslProtocol::TLS12,
-        #[allow(deprecated)]
         Protocol::Tlsv13 => SslProtocol::TLS13,
     }
 }
@@ -226,18 +227,18 @@ impl Certificate {
         panic!("Not implemented on iOS, tvOS, watchOS or visionOS");
     }
 
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(target_os = "macos")]
     pub fn stack_from_pem(buf: &[u8]) -> Result<Vec<Certificate>, Error> {
         let mut items = SecItems::default();
         ImportOptions::new().items(&mut items).import(buf)?;
         if items.identities.is_empty() && items.keys.is_empty() {
-            Ok(items.certificates.drain(..).map(Certificate).collect())
+            Ok(items.certificates.into_iter().map(Certificate).collect())
         } else {
             Err(Error(base::Error::from(errSecParam)))
         }
     }
 
-    #[cfg(target_os = "ios")]
+    #[cfg(not(target_os = "macos"))]
     pub fn stack_from_pem(_buf: &[u8]) -> Result<Vec<Certificate>, Error> {
         panic!("Not implemented on iOS");
     }
@@ -341,7 +342,7 @@ pub struct TlsConnector {
     danger_accept_invalid_certs: bool,
     disable_built_in_roots: bool,
     #[cfg(feature = "alpn")]
-    alpn: Vec<String>,
+    alpn: Vec<Box<str>>,
 }
 
 impl TlsConnector {
@@ -370,11 +371,18 @@ impl TlsConnector {
         S: io::Read + io::Write,
     {
         let mut builder = ClientBuilder::new();
-        if let Some(min) = self.min_protocol {
-            builder.protocol_min(convert_protocol(min));
+        let min = self.min_protocol.map(convert_protocol);
+        let max = self.max_protocol.map(convert_protocol);
+        if let Some(min) = min {
+            // If the unsupported TLS 1.3 is the minimum, then let it fail
+            builder.protocol_min(min);
         }
-        if let Some(max) = self.max_protocol {
-            builder.protocol_max(convert_protocol(max));
+        if let Some(max) = max {
+            builder.protocol_max(match max {
+                // If TLS 1.3 is allowed but not required, then use the latest that is actually supported - 1.2
+                SslProtocol::TLS13 if min != Some(SslProtocol::TLS13) => SslProtocol::TLS12,
+                other => other,
+            });
         }
         if let Some(identity) = self.identity.as_ref() {
             builder.identity(&identity.identity, &identity.chain);
@@ -388,7 +396,7 @@ impl TlsConnector {
         #[cfg(feature = "alpn")]
         {
             if !self.alpn.is_empty() {
-                builder.alpn_protocols(&self.alpn.iter().map(String::as_str).collect::<Vec<_>>());
+                builder.alpn_protocols(&self.alpn.iter().map(|s| &**s).collect::<Vec<_>>());
             }
         }
 

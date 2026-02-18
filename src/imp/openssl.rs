@@ -112,6 +112,7 @@ pub enum Error {
     Ssl(ssl::Error, X509VerifyResult),
     EmptyChain,
     NotPkcs8,
+    AlpnTooLong,
 }
 
 impl error::Error for Error {
@@ -121,6 +122,7 @@ impl error::Error for Error {
             Error::Ssl(ref e, _) => error::Error::source(e),
             Error::EmptyChain => None,
             Error::NotPkcs8 => None,
+            Error::AlpnTooLong => None,
         }
     }
 }
@@ -136,6 +138,7 @@ impl fmt::Display for Error {
                 "at least one certificate must be provided to create an identity"
             ),
             Error::NotPkcs8 => write!(fmt, "expected PKCS#8 PEM"),
+            Error::AlpnTooLong => write!(fmt, "ALPN too long"),
         }
     }
 }
@@ -195,8 +198,8 @@ impl Certificate {
     }
 
     pub fn stack_from_pem(buf: &[u8]) -> Result<Vec<Certificate>, Error> {
-        let mut certs = X509::stack_from_pem(buf)?;
-        Ok(certs.drain(..).map(Certificate).collect())
+        let certs = X509::stack_from_pem(buf)?;
+        Ok(certs.into_iter().map(Certificate).collect())
     }
 
     pub fn to_der(&self) -> Result<Vec<u8>, Error> {
@@ -318,13 +321,19 @@ impl TlsConnector {
                     builder
                         .alpn
                         .iter()
-                        .map(|s| s.as_bytes().len())
+                        .map(|s| s.len())
                         .sum::<usize>()
                         + builder.alpn.len(),
                 );
                 for alpn in builder.alpn.iter().map(|s| s.as_bytes()) {
-                    alpn_wire_format.push(alpn.len() as u8);
-                    alpn_wire_format.extend(alpn);
+                    let len_byte = alpn.len().try_into().map_err(|_| Error::AlpnTooLong)?;
+
+                    if alpn_wire_format.capacity() - alpn_wire_format.len() >= 1 {
+                        alpn_wire_format.push(len_byte);
+                    }
+                    if alpn_wire_format.capacity() - alpn_wire_format.len() >= alpn.len() {
+                        alpn_wire_format.extend(alpn);
+                    }
                 }
                 connector.set_alpn_protos(&alpn_wire_format)?;
             }

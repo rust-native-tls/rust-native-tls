@@ -1,5 +1,13 @@
 # Change Log
 
+## [v0.2.16]
+
+* Added TLS 1.3 as an option on non-Apple platforms. Apple platforms will fall back to TLS 1.2 when it's allowed, or fail due to lack of TLS 1.3 in the `Security.framework`.
+* Added `stack_from_pem` (except iOS).
+* Upgraded `openssl-probe`.
+* Upgraded `Security.framework` bindings.
+* Simplified `cfg()`s to support all non-macOS Apple platforms.
+
 ## [v0.2.15]
 
 * Set default minimum TLS version to 1.2 (TLS 1.1 has been deprecated since 2021)

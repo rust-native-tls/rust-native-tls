@@ -17,14 +17,33 @@ macro_rules! p {
 }
 
 #[test]
-#[cfg(not(target_vendor = "apple"))]
-fn connect_google_tls13() {
+#[cfg_attr(target_vendor = "apple", should_panic = "-9830", allow(deprecated))]
+fn connect_google_tls13_only() {
     let builder = p!(TlsConnector::builder()
         .min_protocol_version(Some(Protocol::Tlsv13))
         .max_protocol_version(Some(Protocol::Tlsv13))
         .build());
     let s = p!(TcpStream::connect("google.com:443"));
     let mut socket = p!(builder.connect("google.com", s));
+
+    p!(socket.write_all(b"GET / HTTP/1.0\r\n\r\n"));
+    let mut result = vec![];
+    p!(socket.read_to_end(&mut result));
+
+    println!("{}", String::from_utf8_lossy(&result));
+    assert!(result.starts_with(b"HTTP/1.0"));
+    assert!(result.ends_with(b"</HTML>\r\n") || result.ends_with(b"</html>"));
+}
+
+#[test]
+#[cfg_attr(target_vendor = "apple", allow(deprecated))]
+fn connect_google_tls12_13() {
+    let builder = p!(TlsConnector::builder()
+        .min_protocol_version(Some(Protocol::Tlsv12))
+        .max_protocol_version(Some(Protocol::Tlsv13))
+        .build());
+    let s = p!(TcpStream::connect("www.google.com:443"));
+    let mut socket = p!(builder.connect("www.google.com", s));
 
     p!(socket.write_all(b"GET / HTTP/1.0\r\n\r\n"));
     let mut result = vec![];
