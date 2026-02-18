@@ -204,6 +204,7 @@ impl Certificate {
     }
 
     /// Parses some PEM-formatted X509 certificates.
+    #[cfg(not(target_env = "sgx"))]
     #[cfg_attr(all(target_vendor = "apple", not(target_os = "macos")), deprecated(note = "Not available on iOS"))]
     pub fn stack_from_pem(buf: &[u8]) -> Result<Vec<Certificate>> {
         let certs = imp::Certificate::stack_from_pem(buf)?;

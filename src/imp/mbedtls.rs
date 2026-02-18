@@ -17,7 +17,7 @@ use std::fmt::{self, Debug};
 use std::io;
 use std::sync::Arc;
 
-use {Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
+use crate::{Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
 
 #[derive(Debug)]
 pub enum Error {
@@ -88,6 +88,7 @@ fn to_mbedtls_version(protocol: Protocol) -> Version {
         Protocol::Tlsv10 => Version::Tls1_0,
         Protocol::Tlsv11 => Version::Tls1_1,
         Protocol::Tlsv12 => Version::Tls1_2,
+        Protocol::Tlsv13 => unimplemented!(),
     }
 }
 
@@ -265,10 +266,7 @@ impl<S> TlsStream<S> {
         let cert = match self.ctx.peer_cert() {
             Ok(Some(certs)) => certs.iter().next().map(|cert| Certificate(cert.clone())),
             Ok(_) => None,
-            Err(e) => match e {
-                TlsError::SslBadInputData => None,
-                _ => return Err(Error::Tls(e)),
-            },
+            Err(e) => return Err(Error::Tls(e)),
         };
         Ok(cert)
     }
@@ -374,7 +372,7 @@ where
 #[derive(Clone)]
 pub struct TlsConnector {
     config: Arc<Config>,
-    identity: Option<::Identity>,
+    identity: Option<crate::Identity>,
     accept_invalid_hostnames: bool,
 }
 
