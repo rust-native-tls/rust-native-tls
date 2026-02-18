@@ -8,7 +8,9 @@ use security_framework::secure_transport::{
     self, ClientBuilder, SslConnectionType, SslContext, SslProtocol, SslProtocolSide,
 };
 #[cfg(target_os = "macos")]
-use security_framework_sys::base::{errSecIO, errSecParam};
+use security_framework_sys::base::errSecIO;
+#[cfg(any(feature = "alpn", target_os = "macos"))]
+use security_framework_sys::base::errSecParam;
 use std::error;
 use std::fmt;
 use std::io;
