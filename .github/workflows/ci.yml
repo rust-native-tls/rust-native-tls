@@ -102,10 +102,21 @@ jobs:
         toolchain: stable
         targets: x86_64-linux-android
         components: clippy
-    - name: Install cargo ndk and rust compiler for android target
-      run: |
-        cargo install --locked cargo-ndk
-        rustup target add x86_64-linux-android
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+        key: cratesio-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin
+          ~/.cargo/.crates*
+          target
+        key: android-bin-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
+    - name: Install cargo ndk
+      run: cargo install --locked cargo-ndk
     - name: clippy
       run: cargo ndk -t x86_64 clippy --features vendored -- -D warnings
     - name: Build
