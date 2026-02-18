@@ -11,6 +11,7 @@ keywords = ["tls", "https", "secure-transport", "platform", "abstraction"]
 readme = "README.md"
 rust-version = "1.80"
 edition = "2021"
+include = ["src/**/*.rs", "LICENSE*"]
 
 [package.metadata.docs.rs]
 features = ["alpn"]
