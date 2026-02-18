@@ -34,9 +34,8 @@
 //!
 //! # Cargo Features
 //!
-//! * `vendored` - If enabled, the crate will compile and statically link to a
-//!   vendored copy of OpenSSL. This feature has no effect on Windows and
-//!   macOS, where OpenSSL is not used.
+//! * `vendored` - If enabled, the crate will compile and statically link to a vendored copy of OpenSSL. This feature
+//!   has no effect on Windows and macOS, where OpenSSL is not used.
 //! * `alpn` - enables `request_alpns()` for negotiating HTTP/2, etc.
 //!
 //! # Examples
@@ -64,7 +63,7 @@
 //! ```rust,no_run
 //! use native_tls::{Identity, TlsAcceptor, TlsStream};
 //! use std::fs::File;
-//! use std::io::{Read};
+//! use std::io::Read;
 //! use std::net::{TcpListener, TcpStream};
 //! use std::sync::Arc;
 //! use std::thread;
@@ -90,8 +89,8 @@
 //!                 let stream = acceptor.accept(stream).unwrap();
 //!                 handle_client(stream);
 //!             });
-//!         }
-//!         Err(e) => { /* connection failed */ }
+//!         },
+//!         Err(e) => { /* connection failed */ },
 //!     }
 //! }
 //! ```
@@ -99,10 +98,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use std::any::Any;
-use std::error;
-use std::fmt;
-use std::io;
-use std::result;
+use std::{error, fmt, io, result};
 
 #[cfg_attr(target_vendor = "apple", path = "imp/security_framework.rs")]
 #[cfg_attr(target_os = "windows", path = "imp/schannel.rs")]
@@ -558,7 +554,7 @@ impl TlsAcceptorBuilder {
         self.max_protocol = protocol;
         self
     }
-    
+
     /// Accept specific protocols through ALPN (Application-Layer Protocol Negotiation).
     ///
     /// Defaults to empty.
@@ -583,7 +579,7 @@ impl TlsAcceptorBuilder {
 /// ```rust,no_run
 /// use native_tls::{Identity, TlsAcceptor, TlsStream};
 /// use std::fs::File;
-/// use std::io::{Read};
+/// use std::io::Read;
 /// use std::net::{TcpListener, TcpStream};
 /// use std::sync::Arc;
 /// use std::thread;
@@ -609,8 +605,8 @@ impl TlsAcceptorBuilder {
 ///                 let stream = acceptor.accept(stream).unwrap();
 ///                 handle_client(stream);
 ///             });
-///         }
-///         Err(e) => { /* connection failed */ }
+///         },
+///         Err(e) => { /* connection failed */ },
 ///     }
 /// }
 /// ```

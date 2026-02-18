@@ -11,12 +11,9 @@ use security_framework::secure_transport::{
 use security_framework_sys::base::errSecIO;
 #[cfg(any(feature = "alpn", target_os = "macos"))]
 use security_framework_sys::base::errSecParam;
-use std::error;
-use std::fmt;
-use std::io;
-use std::str;
 #[cfg(target_os = "macos")]
 use std::sync::{Mutex, Once};
+use std::{error, fmt, io, str};
 
 #[cfg(target_os = "macos")]
 use security_framework::os::macos::certificate::{PropertyType, SecCertificateExt};

@@ -7,12 +7,11 @@ use openssl::ssl::{
     self, MidHandshakeSslStream, SslAcceptor, SslConnector, SslContextBuilder, SslMethod,
     SslVerifyMode,
 };
-use openssl::x509::{store::X509StoreBuilder, X509VerifyResult, X509};
+use openssl::x509::store::X509StoreBuilder;
+use openssl::x509::{X509VerifyResult, X509};
 use openssl_probe::ProbeResult;
-use std::error;
-use std::fmt;
-use std::io;
 use std::sync::LazyLock;
+use std::{error, fmt, io};
 
 use crate::{Protocol, TlsAcceptorBuilder, TlsConnectorBuilder};
 use log::debug;
@@ -350,13 +349,8 @@ impl TlsConnector {
 #[cfg(any(feature = "alpn", feature = "alpn-accept"))]
 fn alpn_wire_format(alpn_list: &[Box<str>]) -> Result<Vec<u8>, Error> {
     // Wire format is each alpn preceded by its length as a byte.
-    let mut alpn_wire_format = Vec::with_capacity(
-        alpn_list
-            .iter()
-            .map(|s| s.len())
-            .sum::<usize>()
-            + alpn_list.len(),
-    );
+    let mut alpn_wire_format =
+        Vec::with_capacity(alpn_list.iter().map(|s| s.len()).sum::<usize>() + alpn_list.len());
     for alpn in alpn_list.iter().map(|s| s.as_bytes()) {
         let len_byte = alpn.len().try_into().map_err(|_| Error::AlpnTooLong)?;
 
