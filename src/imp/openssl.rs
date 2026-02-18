@@ -314,29 +314,8 @@ impl TlsConnector {
         }
 
         #[cfg(feature = "alpn")]
-        {
-            if !builder.alpn.is_empty() {
-                // Wire format is each alpn preceded by its length as a byte.
-                let mut alpn_wire_format = Vec::with_capacity(
-                    builder
-                        .alpn
-                        .iter()
-                        .map(|s| s.len())
-                        .sum::<usize>()
-                        + builder.alpn.len(),
-                );
-                for alpn in builder.alpn.iter().map(|s| s.as_bytes()) {
-                    let len_byte = alpn.len().try_into().map_err(|_| Error::AlpnTooLong)?;
-
-                    if alpn_wire_format.capacity() - alpn_wire_format.len() >= 1 {
-                        alpn_wire_format.push(len_byte);
-                    }
-                    if alpn_wire_format.capacity() - alpn_wire_format.len() >= alpn.len() {
-                        alpn_wire_format.extend(alpn);
-                    }
-                }
-                connector.set_alpn_protos(&alpn_wire_format)?;
-            }
+        if !builder.alpn.is_empty() {
+            connector.set_alpn_protos(&alpn_wire_format(&builder.alpn)?)?;
         }
 
         #[cfg(target_os = "android")]
@@ -368,6 +347,29 @@ impl TlsConnector {
     }
 }
 
+#[cfg(any(feature = "alpn", feature = "alpn-accept"))]
+fn alpn_wire_format(alpn_list: &[Box<str>]) -> Result<Vec<u8>, Error> {
+    // Wire format is each alpn preceded by its length as a byte.
+    let mut alpn_wire_format = Vec::with_capacity(
+        alpn_list
+            .iter()
+            .map(|s| s.len())
+            .sum::<usize>()
+            + alpn_list.len(),
+    );
+    for alpn in alpn_list.iter().map(|s| s.as_bytes()) {
+        let len_byte = alpn.len().try_into().map_err(|_| Error::AlpnTooLong)?;
+
+        if alpn_wire_format.capacity() - alpn_wire_format.len() >= 1 {
+            alpn_wire_format.push(len_byte);
+        }
+        if alpn_wire_format.capacity() - alpn_wire_format.len() >= alpn.len() {
+            alpn_wire_format.extend(alpn);
+        }
+    }
+    Ok(alpn_wire_format)
+}
+
 impl fmt::Debug for TlsConnector {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("TlsConnector")
@@ -389,20 +391,7 @@ impl TlsAcceptor {
         acceptor.set_certificate(&builder.identity.0.cert)?;
         #[cfg(feature = "alpn")]
         if !builder.alpn.is_empty() {
-            use self::openssl::ssl::SslRef;
-            // Wire format is each alpn preceded by its length as a byte.
-            let mut alpn_wire_format = Vec::with_capacity(
-                builder
-                    .alpn
-                    .iter()
-                    .map(|s| s.as_bytes().len())
-                    .sum::<usize>()
-                    + builder.alpn.len(),
-            );
-            for alpn in builder.alpn.iter().map(|s| s.as_bytes()) {
-                alpn_wire_format.push(alpn.len() as u8);
-                alpn_wire_format.extend(alpn);
-            }
+            let alpn_wire_format = alpn_wire_format(&builder.accept_alpn)?;
             acceptor.set_alpn_protos(&alpn_wire_format)?;
             // set uo ALPN selection routine - as select_next_proto
             acceptor.set_alpn_select_callback(move |_: &mut SslRef, list: &[u8]| {
@@ -501,9 +490,7 @@ impl<S: io::Read + io::Write> TlsStream<S> {
         match self.0.shutdown() {
             Ok(_) => Ok(()),
             Err(ref e) if e.code() == ssl::ErrorCode::ZERO_RETURN => Ok(()),
-            Err(e) => Err(e
-                .into_io_error()
-                .unwrap_or_else(|e| io::Error::new(io::ErrorKind::Other, e))),
+            Err(e) => Err(e.into_io_error().unwrap_or_else(io::Error::other)),
         }
     }
 }
