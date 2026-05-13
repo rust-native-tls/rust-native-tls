@@ -645,6 +645,75 @@ fn two_servers() {
     p!(j2.join());
 }
 
+#[test]
+fn export_keying_material() {
+    let keys = test_cert_gen::keys();
+
+    let identity = p!(Identity::from_pkcs12(
+        &keys.server.cert_and_key_pkcs12.pkcs12.0,
+        &keys.server.cert_and_key_pkcs12.password
+    ));
+    let acceptor = p!(TlsAcceptor::new(identity));
+
+    let listener = p!(TcpListener::bind("0.0.0.0:0"));
+    let port = p!(listener.local_addr()).port();
+
+    let j = thread::spawn(move || {
+        let socket = p!(listener.accept()).0;
+        let socket = p!(acceptor.accept(socket));
+
+        let mut a = vec![0u8; 32];
+        let mut b = vec![0u8; 32];
+        let mut c = vec![0u8; 16];
+        let ra = socket.export_keying_material(&mut a, b"EXPORTER-test", None);
+        let rb = socket.export_keying_material(&mut b, b"EXPORTER-test", Some(b"ctx"));
+        let rc = socket.export_keying_material(&mut c, b"EXPORTER-test", None);
+        (ra.map(|_| a), rb.map(|_| b), rc.map(|_| c))
+    });
+
+    let root_ca = Certificate::from_der(keys.client.ca.get_der()).unwrap();
+    let socket = p!(TcpStream::connect(("localhost", port)));
+    let connector = p!(TlsConnector::builder()
+        .add_root_certificate(root_ca)
+        .build());
+    let socket = p!(connector.connect("localhost", socket));
+
+    let mut a = vec![0u8; 32];
+    let mut b = vec![0u8; 32];
+    let mut c = vec![0u8; 16];
+    let client_a = socket.export_keying_material(&mut a, b"EXPORTER-test", None);
+    let client_b = socket.export_keying_material(&mut b, b"EXPORTER-test", Some(b"ctx"));
+    let client_c = socket.export_keying_material(&mut c, b"EXPORTER-test", None);
+
+    let (server_a, server_b, server_c) = p!(j.join());
+
+    match (client_a, server_a) {
+        (Ok(()), Ok(server_a)) => {
+            assert_eq!(a, server_a);
+            assert_eq!(a.len(), 32);
+            // different context must produce different bytes
+            client_b.unwrap();
+            let server_b = server_b.unwrap();
+            assert_eq!(b, server_b);
+            assert_ne!(a, b);
+            // shorter length is still valid
+            client_c.unwrap();
+            let server_c = server_c.unwrap();
+            assert_eq!(c, server_c);
+            assert_eq!(c.len(), 16);
+        }
+        (Err(_), Err(_)) => {
+            // Backend (SChannel / Secure Transport) doesn't expose EKM.
+            // Verify both sides reject consistently.
+            assert!(client_b.is_err());
+            assert!(server_b.is_err());
+            assert!(client_c.is_err());
+            assert!(server_c.is_err());
+        }
+        (c, s) => panic!("inconsistent EKM support: client={:?} server={:?}", c, s),
+    }
+}
+
 fn rsa_to_pkcs8(pem: &str) -> String {
     let mut child = Command::new("openssl")
         .arg("pkcs8")

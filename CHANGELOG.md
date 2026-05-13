@@ -1,5 +1,13 @@
 # Change Log
 
+## Unreleased
+
+* Added `TlsStream::export_keying_material` for deriving exported keying
+  material (RFC 5705 / RFC 8446 §7.5), as used by RFC 9266 channel binding.
+  Supported on the OpenSSL backend; returns an error on SChannel (Windows)
+  and Secure Transport (Apple) where the underlying bindings do not expose
+  the primitive.
+
 ## [v0.2.18]
 
 * Fixed min/max protocol selection fallback for very old OpenSSL versions.

@@ -505,6 +505,15 @@ impl<S: io::Read + io::Write> TlsStream<S> {
         }
     }
 
+    pub fn export_keying_material(
+        &self,
+        _out: &mut [u8],
+        _label: &[u8],
+        _context: Option<&[u8]>,
+    ) -> Result<(), Error> {
+        Err(Error(base::Error::from(security_framework_sys::base::errSecUnimplemented)))
+    }
+
     #[cfg(not(target_os = "macos"))]
     pub fn tls_server_end_point(&self) -> Result<Option<Vec<u8>>, Error> {
         Ok(None)

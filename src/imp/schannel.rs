@@ -412,6 +412,18 @@ impl<S: io::Read + io::Write> TlsStream<S> {
         Ok(self.0.negotiated_application_protocol()?)
     }
 
+    pub fn export_keying_material(
+        &self,
+        _out: &mut [u8],
+        _label: &[u8],
+        _context: Option<&[u8]>,
+    ) -> Result<(), Error> {
+        Err(Error(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "TLS exporter (RFC 5705 / RFC 8446 \u{00a7}7.5) is not supported by the SChannel backend",
+        )))
+    }
+
     pub fn tls_server_end_point(&self) -> Result<Option<Vec<u8>>, Error> {
         let cert = if self.0.is_server() {
             self.0.certificate()

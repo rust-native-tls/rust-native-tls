@@ -120,6 +120,7 @@ pub enum Error {
     EmptyChain,
     NotPkcs8,
     AlpnTooLong,
+    InvalidLabel,
 }
 
 impl error::Error for Error {
@@ -130,6 +131,7 @@ impl error::Error for Error {
             Error::EmptyChain => None,
             Error::NotPkcs8 => None,
             Error::AlpnTooLong => None,
+            Error::InvalidLabel => None,
         }
     }
 }
@@ -146,6 +148,7 @@ impl fmt::Display for Error {
             ),
             Error::NotPkcs8 => write!(fmt, "expected PKCS#8 PEM"),
             Error::AlpnTooLong => write!(fmt, "ALPN too long"),
+            Error::InvalidLabel => write!(fmt, "TLS exporter label must be valid UTF-8"),
         }
     }
 }
@@ -168,8 +171,8 @@ impl Identity {
         let pkcs12 = Pkcs12::from_der(buf)?;
         let parsed = pkcs12.parse2(pass)?;
         Ok(Identity {
-            pkey: parsed.pkey.ok_or_else(|| Error::EmptyChain)?,
-            cert: parsed.cert.ok_or_else(|| Error::EmptyChain)?,
+            pkey: parsed.pkey.ok_or(Error::EmptyChain)?,
+            cert: parsed.cert.ok_or(Error::EmptyChain)?,
             // > The stack is the reverse of what you might expect due to the way
             // > PKCS12_parse is implemented, so we need to load it backwards.
             // > https://github.com/sfackler/rust-native-tls/commit/05fb5e583be589ab63d9f83d986d095639f8ec44
@@ -462,6 +465,17 @@ impl<S: io::Read + io::Write> TlsStream<S> {
             .ssl()
             .selected_alpn_protocol()
             .map(|alpn| alpn.to_vec()))
+    }
+
+    pub fn export_keying_material(
+        &self,
+        out: &mut [u8],
+        label: &[u8],
+        context: Option<&[u8]>,
+    ) -> Result<(), Error> {
+        let label = std::str::from_utf8(label).map_err(|_| Error::InvalidLabel)?;
+        self.0.ssl().export_keying_material(out, label, context)?;
+        Ok(())
     }
 
     pub fn tls_server_end_point(&self) -> Result<Option<Vec<u8>>, Error> {

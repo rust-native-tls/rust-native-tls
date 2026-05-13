@@ -699,6 +699,42 @@ impl<S: io::Read + io::Write> TlsStream<S> {
         Ok(self.0.tls_server_end_point()?)
     }
 
+    /// Derives keying material for application use as defined in [RFC 5705]
+    /// (TLS 1.0&ndash;1.2) and [RFC 8446] &sect;7.5 (TLS 1.3).
+    ///
+    /// This is also known as the "TLS exporter" or "exported keying material"
+    /// (EKM) and is used by e.g. [RFC 9266] channel binding tokens
+    /// (`tls-exporter`) and SRTP key derivation.
+    ///
+    /// The provided `out` buffer is filled with derived bytes; its length
+    /// determines how many bytes of keying material are produced. The `label`
+    /// is a short ASCII string identifying the purpose, e.g.
+    /// `b"EXPORTER-Channel-Binding"`. `context` is an optional extra input,
+    /// and per RFC 5705 `None` is *not* equivalent to `Some(&[])` (they
+    /// produce different output on TLS 1.2).
+    ///
+    /// # Backend support
+    ///
+    /// EKM export is currently only implemented for the OpenSSL backend
+    /// (Linux, Android, and other non-Apple Unixes). The SChannel (Windows)
+    /// and Secure Transport (Apple) backends do not expose this primitive in
+    /// their Rust bindings yet, so calling this method on those platforms
+    /// returns an error (kind [`std::io::ErrorKind::Unsupported`] on
+    /// Windows and `errSecUnimplemented` on Apple).
+    ///
+    /// [RFC 5705]: https://tools.ietf.org/html/rfc5705
+    /// [RFC 8446]: https://tools.ietf.org/html/rfc8446
+    /// [RFC 9266]: https://tools.ietf.org/html/rfc9266
+    pub fn export_keying_material(
+        &self,
+        out: &mut [u8],
+        label: &[u8],
+        context: Option<&[u8]>,
+    ) -> Result<()> {
+        self.0.export_keying_material(out, label, context)?;
+        Ok(())
+    }
+
     /// Returns the negotiated ALPN protocol.
     #[cfg(feature = "alpn")]
     #[cfg_attr(docsrs, doc(cfg(feature = "alpn")))]
