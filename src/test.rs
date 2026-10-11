@@ -660,3 +660,224 @@ fn rsa_to_pkcs8(pem: &str) -> String {
     }
     String::from_utf8(child.wait_with_output().unwrap().stdout).unwrap()
 }
+
+/// Tests for the order in which the certificate chain of a PKCS #12 identity is sent
+/// to the peer. These use the `openssl` crate directly to inspect the raw chain and so
+/// only run with the OpenSSL backend.
+#[cfg(not(any(target_os = "windows", target_vendor = "apple")))]
+mod pkcs12_chain_order {
+    use openssl::asn1::Asn1Time;
+    use openssl::bn::BigNum;
+    use openssl::hash::MessageDigest;
+    use openssl::nid::Nid;
+    use openssl::pkcs12::Pkcs12;
+    use openssl::pkey::{PKey, Private};
+    use openssl::rsa::Rsa;
+    use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode};
+    use openssl::stack::Stack;
+    use openssl::x509::extension::{BasicConstraints, SubjectAlternativeName};
+    use openssl::x509::{X509Builder, X509NameBuilder, X509Ref, X509};
+    use std::io::{Read, Write};
+    use std::net::{TcpListener, TcpStream};
+    use std::thread;
+
+    use crate::{Identity, TlsAcceptor};
+
+    fn make_cert(
+        cn: &str,
+        serial: u32,
+        ca: bool,
+        issuer: Option<(&X509, &PKey<Private>)>,
+    ) -> (X509, PKey<Private>) {
+        let key = PKey::from_rsa(Rsa::generate(2048).unwrap()).unwrap();
+
+        let mut name = X509NameBuilder::new().unwrap();
+        name.append_entry_by_text("CN", cn).unwrap();
+        let name = name.build();
+
+        let mut builder = X509Builder::new().unwrap();
+        builder.set_version(2).unwrap();
+        builder
+            .set_serial_number(&BigNum::from_u32(serial).unwrap().to_asn1_integer().unwrap())
+            .unwrap();
+        builder.set_subject_name(&name).unwrap();
+        builder.set_pubkey(&key).unwrap();
+        builder
+            .set_not_before(&Asn1Time::days_from_now(0).unwrap())
+            .unwrap();
+        builder
+            .set_not_after(&Asn1Time::days_from_now(365).unwrap())
+            .unwrap();
+        let issuer_cert = issuer.map(|(cert, _)| cert);
+        builder
+            .set_issuer_name(issuer_cert.map_or(&name, |cert| cert.subject_name()))
+            .unwrap();
+        if ca {
+            builder
+                .append_extension(BasicConstraints::new().critical().ca().build().unwrap())
+                .unwrap();
+        } else {
+            let san = SubjectAlternativeName::new()
+                .dns("localhost")
+                .build(&builder.x509v3_context(issuer_cert.map(X509::as_ref), None))
+                .unwrap();
+            builder.append_extension(san).unwrap();
+        }
+        let signing_key = issuer.map_or(&key, |(_, key)| key);
+        builder.sign(signing_key, MessageDigest::sha256()).unwrap();
+        (builder.build(), key)
+    }
+
+    struct Chain {
+        root: X509,
+        intermediate: X509,
+        leaf: X509,
+        leaf_key: PKey<Private>,
+        unrelated: X509,
+    }
+
+    fn make_chain() -> Chain {
+        let (root, root_key) = make_cert("native-tls test root", 1, true, None);
+        let (intermediate, intermediate_key) = make_cert(
+            "native-tls test intermediate",
+            2,
+            true,
+            Some((&root, &root_key)),
+        );
+        let (leaf, leaf_key) = make_cert(
+            "localhost",
+            3,
+            false,
+            Some((&intermediate, &intermediate_key)),
+        );
+        let (unrelated, _) = make_cert("native-tls unrelated", 4, true, None);
+        Chain {
+            root,
+            intermediate,
+            leaf,
+            leaf_key,
+            unrelated,
+        }
+    }
+
+    /// Builds a PKCS #12 archive whose CA bag contains `ca` in exactly that order,
+    /// like `openssl pkcs12 -export -inkey leaf.key -in leaf.pem -certfile chain.pem`
+    /// does for the certificates in `chain.pem`.
+    fn pkcs12(chain: &Chain, ca: &[&X509]) -> Vec<u8> {
+        let mut stack = Stack::new().unwrap();
+        for cert in ca {
+            stack.push((*cert).clone()).unwrap();
+        }
+        Pkcs12::builder()
+            .name("native-tls test")
+            .pkey(&chain.leaf_key)
+            .cert(&chain.leaf)
+            .ca(stack)
+            .build2("hunter2")
+            .unwrap()
+            .to_der()
+            .unwrap()
+    }
+
+    fn common_name(cert: &X509Ref) -> String {
+        let cn = cert
+            .subject_name()
+            .entries_by_nid(Nid::COMMONNAME)
+            .next()
+            .unwrap();
+        String::from_utf8_lossy(cn.data().as_slice()).into_owned()
+    }
+
+    /// Runs a server with `identity` and returns the common names of the certificates
+    /// the server sent, in the order the client received them.
+    fn served_chain(identity: Identity, root: &X509) -> Vec<String> {
+        let acceptor = p!(TlsAcceptor::new(identity));
+        let listener = p!(TcpListener::bind("127.0.0.1:0"));
+        let port = p!(listener.local_addr()).port();
+
+        let j = thread::spawn(move || {
+            let socket = p!(listener.accept()).0;
+            let mut socket = p!(acceptor.accept(socket));
+            let mut buf = [0; 5];
+            p!(socket.read_exact(&mut buf));
+            assert_eq!(&buf, b"hello");
+            p!(socket.write_all(b"world"));
+        });
+
+        let mut connector = p!(SslConnector::builder(SslMethod::tls_client()));
+        p!(connector.cert_store_mut().add_cert(root.clone()));
+        connector.set_verify(SslVerifyMode::PEER);
+        let connector = connector.build();
+
+        let socket = p!(TcpStream::connect(("127.0.0.1", port)));
+        let mut socket = p!(connector.connect("localhost", socket));
+        let chain = socket
+            .ssl()
+            .peer_cert_chain()
+            .expect("server sent no certificates")
+            .iter()
+            .map(common_name)
+            .collect();
+
+        p!(socket.write_all(b"hello"));
+        let mut buf = vec![];
+        p!(socket.read_to_end(&mut buf));
+        assert_eq!(buf, b"world");
+        p!(j.join());
+
+        chain
+    }
+
+    fn names(certs: &[&X509]) -> Vec<String> {
+        certs.iter().map(|cert| common_name(cert)).collect()
+    }
+
+    /// The order `openssl pkcs12 -export ... -certfile chain.pem` stores for a
+    /// `chain.pem` holding the intermediate followed by the root. OpenSSL >= 3.0 hands
+    /// this order back from `PKCS12_parse` unchanged, so blindly reversing it makes the
+    /// server send the root before the intermediate.
+    #[test]
+    fn leaf_to_root_order() {
+        let chain = make_chain();
+        let der = pkcs12(&chain, &[&chain.intermediate, &chain.root]);
+        let identity = p!(Identity::from_pkcs12(&der, "hunter2"));
+        assert_eq!(
+            served_chain(identity, &chain.root),
+            names(&[&chain.leaf, &chain.intermediate, &chain.root])
+        );
+    }
+
+    /// An archive storing the root before the intermediate, as other tools may write
+    /// it, must also be sent leaf first.
+    #[test]
+    fn root_to_leaf_order() {
+        let chain = make_chain();
+        let der = pkcs12(&chain, &[&chain.root, &chain.intermediate]);
+        let identity = p!(Identity::from_pkcs12(&der, "hunter2"));
+        assert_eq!(
+            served_chain(identity, &chain.root),
+            names(&[&chain.leaf, &chain.intermediate, &chain.root])
+        );
+    }
+
+    /// Certificates that are not part of the chain are kept, after the chain, in their
+    /// original order.
+    #[test]
+    fn unrelated_certificates_are_kept() {
+        let chain = make_chain();
+        let der = pkcs12(
+            &chain,
+            &[&chain.unrelated, &chain.root, &chain.intermediate],
+        );
+        let identity = p!(Identity::from_pkcs12(&der, "hunter2"));
+        assert_eq!(
+            served_chain(identity, &chain.root),
+            names(&[
+                &chain.leaf,
+                &chain.intermediate,
+                &chain.root,
+                &chain.unrelated
+            ])
+        );
+    }
+}

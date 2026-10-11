@@ -8,7 +8,7 @@ use openssl::ssl::{
     SslVerifyMode,
 };
 use openssl::x509::store::X509StoreBuilder;
-use openssl::x509::{X509VerifyResult, X509};
+use openssl::x509::{X509Ref, X509VerifyResult, X509};
 use openssl_probe::ProbeResult;
 use std::sync::LazyLock;
 use std::{error, fmt, io};
@@ -167,14 +167,15 @@ impl Identity {
     pub fn from_pkcs12(buf: &[u8], pass: &str) -> Result<Identity, Error> {
         let pkcs12 = Pkcs12::from_der(buf)?;
         let parsed = pkcs12.parse2(pass)?;
-        Ok(Identity {
-            pkey: parsed.pkey.ok_or_else(|| Error::EmptyChain)?,
-            cert: parsed.cert.ok_or_else(|| Error::EmptyChain)?,
-            // > The stack is the reverse of what you might expect due to the way
-            // > PKCS12_parse is implemented, so we need to load it backwards.
-            // > https://github.com/sfackler/rust-native-tls/commit/05fb5e583be589ab63d9f83d986d095639f8ec44
-            chain: parsed.ca.into_iter().flatten().rev().collect(),
-        })
+        let pkey = parsed.pkey.ok_or(Error::EmptyChain)?;
+        let cert = parsed.cert.ok_or(Error::EmptyChain)?;
+        // OpenSSL < 3.0 returns the CA certificates in the reverse of the order they
+        // appear in the archive, while OpenSSL >= 3.0 preserves the archive order
+        // (https://github.com/openssl/openssl/issues/6698). Rather than depending on
+        // the OpenSSL version, rebuild the chain from the certificates' issuer
+        // relationships so it is always ordered from the leaf towards the root.
+        let chain = order_chain(&cert, parsed.ca.into_iter().flatten().collect());
+        Ok(Identity { pkey, cert, chain })
     }
 
     pub fn from_pkcs8(buf: &[u8], key: &[u8]) -> Result<Identity, Error> {
@@ -188,6 +189,27 @@ impl Identity {
         let chain = cert_chain.collect();
         Ok(Identity { pkey, cert, chain })
     }
+}
+
+/// Orders `chain` so that it starts with the issuer of `leaf` and every following
+/// certificate is the issuer of the one before it, which is the order required by
+/// `SSL_CTX_add_extra_chain_cert`. Certificates that do not fit into the chain
+/// (duplicates, cross-signs, unrelated certificates) are appended afterwards in
+/// their original order.
+fn order_chain(leaf: &X509Ref, mut chain: Vec<X509>) -> Vec<X509> {
+    let mut ordered = Vec::with_capacity(chain.len());
+    loop {
+        let subject = ordered.last().map(X509::as_ref).unwrap_or(leaf);
+        match chain
+            .iter()
+            .position(|cert| cert.issued(subject) == X509VerifyResult::OK)
+        {
+            Some(i) => ordered.push(chain.remove(i)),
+            None => break,
+        }
+    }
+    ordered.extend(chain);
+    ordered
 }
 
 #[derive(Clone)]
